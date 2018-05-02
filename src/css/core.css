@@ -1,0 +1,61 @@
+body {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    cursor: default;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+}
+
+svg {
+    display: block;
+}
+
+text {
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 12px;
+    fill: hsl(0, 0%, 60%);
+}
+
+/* Brush */
+.brush .selection {
+    fill-opacity: 0.2;
+}
+
+/* Axis */
+.tick line,
+.axis path,
+.x-axis path,
+.y-axis path {
+    stroke: hsl(0, 0%, 60%);
+}
+
+.axis text {
+    font-size: 10px;
+}
+
+/* Horizontal, vertical lines */
+line, rect {
+    shape-rendering: crispEdges;
+}
+
+/* Normal straight lines in graphs */
+.links line,
+.links path {
+    fill: none;
+    stroke: hsl(0, 0%, 60%);
+    shape-rendering: auto;
+}
+
+.settings div {
+    display: inline;
+    margin-right: 10px;
+}
+
+.hidden {
+    display: none;
+}

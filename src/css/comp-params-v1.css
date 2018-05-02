@@ -1,0 +1,8 @@
+.pv-comp-params line.baseline {
+    stroke: hsl(0, 0%, 80%);
+}
+
+.pv-comp-params .dot circle:hover,
+.pv-comp-params .dot.hovered circle {
+    fill: orange !important;
+}

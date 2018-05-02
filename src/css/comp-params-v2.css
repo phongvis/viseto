@@ -1,0 +1,15 @@
+.pv-comp-params .col.even rect {
+    fill: hsl(0, 0%, 95%);
+}
+
+.pv-comp-params .col.odd rect {
+    fill: hsl(0, 0%, 90%);
+}
+
+.pv-comp-params line.baseline {
+    stroke: hsl(0, 0%, 80%);
+}
+
+.pv-comp-params .bar rect {
+    fill: hsl(0, 0%, 75%);
+}

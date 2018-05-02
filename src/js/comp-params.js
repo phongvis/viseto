@@ -1,0 +1,346 @@
+/**
+ * Compare the distribution of values in multiple models accross data points.
+ * Data input: an array with each element detailing each model to compare
+ * - label: the parameter that makes those models different
+ * - values: an array of values, each for a data point
+ */
+pv.vis.compParams = function() {
+    /**
+     * Visual configs.
+     */
+    const margin = { top: 5, right: 5, bottom: 5, left: 5 },
+        rowHeight = 10,
+        rowGap = 0,
+        maxCellWidth = 40,
+        cellGap = 10;
+
+    let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
+        width, height, // Size of the main content, excluding margins
+        alternativeBackground = false;
+
+    /**
+     * Accessors.
+     */
+    let values = d => d.values;
+
+    /**
+     * Data binding to DOM elements.
+     */
+    let models,
+        colData,
+        rowData,
+        activeRowData,
+        dataChanged = true; // True to redo all data-related computations
+
+    /**
+     * DOM.
+     */
+    let visContainer, // Containing the entire visualization
+        colContainer,
+        rowContainer;
+
+    /**
+     * D3.
+     */
+    const listeners = d3.dispatch('click'),
+        widthScale = d3.scaleLinear().range([0, maxCellWidth]);
+
+    /**
+     * Main entry of the module.
+     */
+    function module(selection) {
+        selection.each(function(_data) {
+            // Initialize
+            if (!this.visInitialized) {
+                visContainer = d3.select(this).append('g').attr('class', 'pv-comp-params');
+                colContainer = visContainer.append('g').attr('class', 'cols');
+                rowContainer = visContainer.append('g').attr('class', 'rows');
+
+                this.visInitialized = true;
+            }
+
+            models = _data;
+            colData = models.map(m => ({}));
+
+            update();
+        });
+
+        dataChanged = false;
+    }
+
+    /**
+     * Updates the visualization when data or display attributes changes.
+     */
+    function update() {
+        // Canvas update
+        width = visWidth - margin.left - margin.right;
+        height = visHeight - margin.top - margin.bottom;
+
+        visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+
+        /**
+         * Computation.
+         */
+        // Updates that depend only on data change
+        if (dataChanged) {
+            rowData = computeRowData();
+        }
+
+        // Updates that depend on both data and display change
+        layoutRows();
+        // layoutCols();
+
+        /**
+         * Draw.
+         */
+        // const cols = colContainer.selectAll('.col').data(colData);
+        // cols.enter().append('g').attr('class', 'col').call(enterCols)
+        //     .merge(cols).call(updateCols);
+        // cols.exit().transition().attr('opacity', 0).remove();
+
+        const rows = rowContainer.selectAll('.row').data(activeRowData);
+        rows.enter().append('g').attr('class', 'row').call(enterRows)
+            .merge(rows).call(updateRows);
+        rows.exit().transition().attr('opacity', 0).remove();
+    }
+
+    /**
+     * Return data bound to each row.
+     */
+    function computeRowData() {
+        if (!models.length) return [];
+
+        const numRows = values(models[0]).length;
+        return _.range(numRows).map(getRowDatum);
+    }
+
+    function getRowDatum(rowIdx) {
+        return models.map((m, i) => ({
+            modelIdx: i,
+            values: values(m)[rowIdx].map(v => ({ value: v }))
+        }));
+    }
+
+    /**
+     * Called when new cols added.
+     */
+    function enterCols(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('rect');
+    }
+
+    /**
+     * Called when cols updated.
+     */
+    function updateCols(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+
+            container.classed('hidden', !showBackground);
+            container.classed('even', i % 2 === 0);
+            container.classed('odd', i % 2 == 1);
+
+            container.select('rect')
+                .attr('width', d.width)
+                .attr('height', d.height);
+        });
+    }
+
+    /**
+     * Called when new rows added.
+     */
+    function enterRows(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+    }
+
+    /**
+     * Called when rows updated.
+     */
+    function updateRows(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+
+            container.classed('even', alternativeBackground && i % 2 === 0);
+            container.classed('odd', alternativeBackground && i % 2 === 1);
+
+            layoutCells(d);
+
+            const cells = container.selectAll('.cell').data(d);
+            cells.enter().append('g').attr('class', 'cell').call(enterCells)
+                .merge(cells).call(updateCells);
+            cells.exit().transition().attr('opacity', 0).remove();
+        });
+    }
+
+    /**
+     * Called when new cells added.
+     */
+    function enterCells(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('g').attr('class', 'bars');
+        container.append('rect').attr('class', 'container');
+    }
+
+    /**
+     * Called when cells updated.
+     */
+    function updateCells(selection) {
+        selection.each(function(d) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+
+            container.select('.container')
+                .attr('width', d.width)
+                .attr('height', d.height);
+
+            layoutBars(d.values);
+
+            const bars = container.select('.bars').selectAll('.bar').data(d.values);
+            bars.enter().append('g').attr('class', 'bar').call(enterBars)
+                .merge(bars).call(updateBars);
+            bars.exit().transition().attr('opacity', 0).remove();
+        });
+    }
+
+    /**
+     * Called when new bars added.
+     */
+    function enterBars(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('rect');
+    }
+
+    /**
+     * Called when bars updated.
+     */
+    function updateBars(selection) {
+        selection.each(function(d) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+
+            container.select('rect')
+                .attr('width', d.width)
+                .attr('height', d.height);
+        });
+    }
+
+    function layoutCols() {
+        colData.forEach((d, i) => {
+            d.x = colWidth * i;
+            d.y = 0;
+            d.width = colWidth;
+            d.height = height;
+        });
+    }
+
+    function layoutRows() {
+        const numVisibleRows = Math.floor(height / (rowHeight + rowGap));
+        activeRowData = rowData.slice(0, numVisibleRows);
+
+        activeRowData.forEach((d, i) => {
+            d.x = 0;
+            d.y = (rowHeight + rowGap)  * i;
+        });
+    }
+
+    function layoutCells(data) {
+        data.forEach((d, i) => {
+            d.x = (maxCellWidth + cellGap) * i;
+            d.y = 0;
+            d.width = maxCellWidth;
+            d.height = rowHeight;
+        });
+    }
+
+    function layoutBars(data) {
+        let sum = 0;
+        data.forEach((d, i) => {
+            d.x = sum;
+            sum += d.width = widthScale(d.value);
+            d.y = 0;
+            d.height = rowHeight;
+        });
+    }
+
+    /**
+     * Sets/gets the width of the visualization.
+     */
+    module.width = function(value) {
+        if (!arguments.length) return visWidth;
+        visWidth = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the height of the visualization.
+     */
+    module.height = function(value) {
+        if (!arguments.length) return visHeight;
+        visHeight = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the label for each model.
+     */
+    module.label = function(value) {
+        if (!arguments.length) return label;
+        label = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the values for each model.
+     */
+    module.values = function(value) {
+        if (!arguments.length) return values;
+        values = value;
+        return this;
+    };
+
+    /**
+     * Sets the flag indicating data input has been changed.
+     */
+    module.invalidate = function() {
+        dataChanged = true;
+    };
+
+    /**
+     * Binds custom events.
+     */
+    module.on = function() {
+        const value = listeners.on.apply(listeners, arguments);
+        return value === listeners ? module : value;
+    };
+
+    return module;
+};
