@@ -1,0 +1,15 @@
+.pv-topicdiff .cell rect.cell-border {
+    stroke: hsl(0, 0%, 60%);
+    fill: none;
+    pointer-events: none;
+}
+
+.pv-topicdiff .bar rect,
+.pv-topicdiff .line line {
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-topicdiff .bar rect:hover,
+.pv-topicdiff .bar.hovered rect {
+    stroke: hsl(0, 0%, 0%);
+}

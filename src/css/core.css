@@ -1,6 +1,6 @@
 body {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     cursor: default;
 }
 
@@ -17,7 +17,7 @@ svg {
 
 text {
     font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 12px;
+    font-size: 11px;
     fill: hsl(0, 0%, 60%);
 }
 
@@ -38,8 +38,7 @@ text {
     font-size: 10px;
 }
 
-/* Horizontal, vertical lines */
-line, rect {
+rect {
     shape-rendering: crispEdges;
 }
 
@@ -48,7 +47,6 @@ line, rect {
 .links path {
     fill: none;
     stroke: hsl(0, 0%, 60%);
-    shape-rendering: auto;
 }
 
 .settings div {

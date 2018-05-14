@@ -8,26 +8,30 @@ pv.vis.compParams = function() {
     /**
      * Visual configs.
      */
-    const margin = { top: 5, right: 5, bottom: 5, left: 5 },
-        rowHeight = 10,
+    const margin = { top: 15, right: 5, bottom: 5, left: 5 },
+        sumRowHeight = 15,
+        rowHeight = 15,
         rowGap = 0,
         maxCellWidth = 40,
-        cellGap = 10;
+        cellGap = 10,
+        sumLabelWidth = 50;
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
-        alternativeBackground = false;
+        detailHeight, // Height for the detail view
+        detailOffset;
 
     /**
      * Accessors.
      */
-    let values = d => d.values;
+    let values = d => d.values,
+        label = d => d.label;
 
     /**
      * Data binding to DOM elements.
      */
     let models,
-        colData,
+        sumData,
         rowData,
         activeRowData,
         dataChanged = true; // True to redo all data-related computations
@@ -36,6 +40,7 @@ pv.vis.compParams = function() {
      * DOM.
      */
     let visContainer, // Containing the entire visualization
+        sumContainer,
         colContainer,
         rowContainer;
 
@@ -43,7 +48,9 @@ pv.vis.compParams = function() {
      * D3.
      */
     const listeners = d3.dispatch('click'),
-        widthScale = d3.scaleLinear().range([0, maxCellWidth]);
+        widthScale = d3.scaleLinear().range([0, maxCellWidth]),
+        sumScale = d3.scaleLog(),
+        sumAxis = d3.axisBottom(sumScale);
 
     /**
      * Main entry of the module.
@@ -53,14 +60,16 @@ pv.vis.compParams = function() {
             // Initialize
             if (!this.visInitialized) {
                 visContainer = d3.select(this).append('g').attr('class', 'pv-comp-params');
+                sumContainer = visContainer.append('g').attr('class', 'sums');
                 colContainer = visContainer.append('g').attr('class', 'cols');
                 rowContainer = visContainer.append('g').attr('class', 'rows');
+
+                sumContainer.append('g').attr('class', 'axis').call(sumAxis);
 
                 this.visInitialized = true;
             }
 
             models = _data;
-            colData = models.map(m => ({}));
 
             update();
         });
@@ -72,36 +81,76 @@ pv.vis.compParams = function() {
      * Updates the visualization when data or display attributes changes.
      */
     function update() {
-        // Canvas update
-        width = visWidth - margin.left - margin.right;
-        height = visHeight - margin.top - margin.bottom;
-
-        visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
         /**
          * Computation.
          */
         // Updates that depend only on data change
         if (dataChanged) {
+            detailOffset = models.length * sumRowHeight + 30;
             rowData = computeRowData();
+            colData = models;
+            sumData = computeSummaryData();
+
+            sumScale.domain([d3.min(sumData, d => d.min), d3.max(sumData, d => d.max)]);
         }
 
+        // Canvas update
+        width = visWidth - margin.left - margin.right;
+        height = visHeight - margin.top - margin.bottom;
+        detailHeight = height - detailOffset;
+        sumScale.range([0, width - sumLabelWidth]);
+
+        visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        rowContainer.attr('transform', 'translate(0,' + detailOffset + ')');
+        colContainer.attr('transform', 'translate(0,' + detailOffset + ')');
+        sumContainer.attr('transform', 'translate(' + sumLabelWidth + ',0)');
+        sumContainer.select('.axis').attr('transform', 'translate(0,' + (models.length * sumRowHeight - 10) + ')')
+            .call(sumAxis);
+
         // Updates that depend on both data and display change
+        layoutSums();
         layoutRows();
-        // layoutCols();
+        layoutCols();
 
         /**
          * Draw.
          */
-        // const cols = colContainer.selectAll('.col').data(colData);
-        // cols.enter().append('g').attr('class', 'col').call(enterCols)
-        //     .merge(cols).call(updateCols);
-        // cols.exit().transition().attr('opacity', 0).remove();
+        const sums = sumContainer.selectAll('.sum').data(sumData);
+        sums.enter().append('g').attr('class', 'sum').call(enterSums)
+            .merge(sums).call(updateSums);
+        sums.exit().transition().attr('opacity', 0).remove();
+
+        const cols = colContainer.selectAll('.col').data(colData);
+        cols.enter().append('g').attr('class', 'col').call(enterCols)
+            .merge(cols).call(updateCols);
+        cols.exit().transition().attr('opacity', 0).remove();
 
         const rows = rowContainer.selectAll('.row').data(activeRowData);
         rows.enter().append('g').attr('class', 'row').call(enterRows)
             .merge(rows).call(updateRows);
         rows.exit().transition().attr('opacity', 0).remove();
+    }
+
+    /**
+     * Return data bound to each summary.
+     */
+    function computeSummaryData() {
+        return models.map((m, i) => {
+            // Exclude 0 for log axis
+            const values = rowData.map(r => r[i].variance).filter(v => v > 0).sort(d3.ascending);
+
+            return {
+                label: label(m),
+                min: values[0],
+                max: _.last(values),
+                mean: d3.mean(values),
+                deviation: d3.deviation(values),
+                q1: d3.quantile(values, 0.25),
+                q2: d3.quantile(values, 0.5),
+                q3: d3.quantile(values, 0.75),
+                values: values.map(v => ({ value: v }))
+            };
+        });
     }
 
     /**
@@ -117,8 +166,105 @@ pv.vis.compParams = function() {
     function getRowDatum(rowIdx) {
         return models.map((m, i) => ({
             modelIdx: i,
-            values: values(m)[rowIdx].map(v => ({ value: v }))
+            values: values(m)[rowIdx].map(v => ({ value: v })),
+            variance: d3.variance(values(m)[rowIdx]),
+            title: values(m)[rowIdx].join('\n')
         }));
+    }
+
+    /**
+     * Called when new sums added.
+     */
+    function enterSums(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('text')
+            .attr('x', -sumLabelWidth)
+            .html(label);
+
+        // Quantiles
+        container.append('rect').attr('class', 'iqr')
+            .attr('y', -10)
+            .attr('height', 10);
+        container.append('line').attr('class', 'q2')
+            .attr('y1', -10)
+            .attr('y2', 0);
+        container.append('line').attr('class', 'low')
+            .attr('y1', -5)
+            .attr('y2', -5);
+        container.append('line').attr('class', 'high')
+            .attr('y1', -5)
+            .attr('y2', -5);
+    }
+
+    /**
+     * Called when sums updated.
+     */
+    function updateSums(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+
+            const k = 4.5,
+                iqr = d.q3 - d.q1,
+                low = d.q1 - k * iqr,
+                high = d.q3 + k * iqr,
+                dotData = d.values.filter(x => x.value < low || x.value > high);
+
+            layoutDots(dotData);
+
+            const dots = container.selectAll('.dot').data(dotData);
+            dots.enter().append('g').attr('class', 'dot').call(enterDots)
+                .merge(dots).call(updateDots);
+            dots.exit().transition().attr('opacity', 0).remove();
+
+            // Quantiles
+            container.select('.iqr')
+                .attr('x', sumScale(d.q1))
+                .attr('width', sumScale(d.q3) - sumScale(d.q1));
+            container.select('.q2')
+                .attr('x1', sumScale(d.q2))
+                .attr('x2', sumScale(d.q2));
+            container.select('.low')
+                .attr('x1', sumScale(low) || 0)
+                .attr('x2', sumScale(d.q1));
+            container.select('.high')
+                .attr('x1', sumScale(high))
+                .attr('x2', sumScale(d.q3));
+        });
+    }
+
+    /**
+     * Called when new dots added.
+     */
+    function enterDots(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('circle')
+            .attr('r', 2.5)
+            .append('title').text(d => d.values);
+    }
+
+    /**
+     * Called when dots updated.
+     */
+    function updateDots(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+        });
     }
 
     /**
@@ -129,7 +275,8 @@ pv.vis.compParams = function() {
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 0);
 
-        container.append('rect');
+        container.append('text')
+            .html(label);
     }
 
     /**
@@ -143,14 +290,6 @@ pv.vis.compParams = function() {
             container.transition()
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
-
-            container.classed('hidden', !showBackground);
-            container.classed('even', i % 2 === 0);
-            container.classed('odd', i % 2 == 1);
-
-            container.select('rect')
-                .attr('width', d.width)
-                .attr('height', d.height);
         });
     }
 
@@ -175,9 +314,6 @@ pv.vis.compParams = function() {
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
 
-            container.classed('even', alternativeBackground && i % 2 === 0);
-            container.classed('odd', alternativeBackground && i % 2 === 1);
-
             layoutCells(d);
 
             const cells = container.selectAll('.cell').data(d);
@@ -197,6 +333,12 @@ pv.vis.compParams = function() {
 
         container.append('g').attr('class', 'bars');
         container.append('rect').attr('class', 'container');
+        container.append('title').text(d => d.title);
+
+        container.on('mouseover', function() {
+            // Move the '.row' up to make its border stand out (:hover in css)
+            d3.select(this.parentNode).raise();
+        });
     }
 
     /**
@@ -253,17 +395,29 @@ pv.vis.compParams = function() {
         });
     }
 
+    function layoutSums() {
+        sumData.forEach((d, i) => {
+            d.x = 0;
+            d.y = sumRowHeight * i;
+        });
+    }
+
+    function layoutDots(data) {
+        data.forEach(d => {
+            d.x = sumScale(d.value);
+            d.y = -5;
+        });
+    }
+
     function layoutCols() {
         colData.forEach((d, i) => {
-            d.x = colWidth * i;
+            d.x = (maxCellWidth + cellGap) * i;
             d.y = 0;
-            d.width = colWidth;
-            d.height = height;
         });
     }
 
     function layoutRows() {
-        const numVisibleRows = Math.floor(height / (rowHeight + rowGap));
+        const numVisibleRows = Math.floor(detailHeight / (rowHeight + rowGap));
         activeRowData = rowData.slice(0, numVisibleRows);
 
         activeRowData.forEach((d, i) => {
@@ -274,7 +428,7 @@ pv.vis.compParams = function() {
 
     function layoutCells(data) {
         data.forEach((d, i) => {
-            d.x = (maxCellWidth + cellGap) * i;
+            d.x = colData[i].x;
             d.y = 0;
             d.width = maxCellWidth;
             d.height = rowHeight;

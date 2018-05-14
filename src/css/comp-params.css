@@ -1,15 +1,40 @@
-.pv-comp-params .cell rect.container,
-.pv-comp-params .even .cell rect.container {
-    fill: none;
+.pv-comp-params .cell .container {
+    fill-opacity: 1e-6;
     stroke: hsl(0, 0%, 40%);
 }
 
-.pv-comp-params .odd .cell rect.container {
-    fill: hsl(0, 0%, 90%);
-    stroke: hsl(0, 0%, 75%);
+.pv-comp-params .cell .container:hover {
+    stroke: red;
 }
 
 .pv-comp-params .bar rect {
     fill: hsl(0, 0%, 95%);
     stroke: hsl(0, 0%, 70%);
+}
+
+.pv-comp-params text {
+    dominant-baseline: text-after-edge;
+    fill: hsl(0, 0%, 40%);
+}
+
+.pv-comp-params .dot {
+    fill-opacity: 0.25;
+}
+
+.pv-comp-params .dot:hover {
+    fill: red;
+}
+
+.pv-comp-params .sum rect {
+    fill: white;
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-comp-params .sum line {
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-comp-params .sum line.low,
+.pv-comp-params .sum line.high {
+    stroke: hsl(0, 0%, 60%);
 }

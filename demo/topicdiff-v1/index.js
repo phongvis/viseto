@@ -1,7 +1,8 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
-    const vis = pv.vis.compParams()
-        .values(d => d.doc_topics);
+    const vis = pv.vis.topicdiff()
+        .term(d => d[0])
+        .prob(d => d[1]);
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
@@ -9,13 +10,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // Data
     let data;
 
-    d3.json('../../data/facebook-alphas.json').then(json => {
-        data = json;
-
-        // Set label
-        data.forEach(d => {
-            d.label = '&alpha;=' + d.alpha;
-        });
+    d3.json('../../data/lss-17k-diff-topics-20.json').then(json => {
+        data = json.slice(5, 7);
+        // data = json;
 
         // Build the vis
         update();
