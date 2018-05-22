@@ -1,7 +1,9 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
     const vis = pv.vis.compParams()
-        .values(d => d.doc_topics);
+        .values(d => d.doc_topics)
+        .groupBy1(d => d.beta)
+        .groupBy2(d => d.alpha);
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
@@ -9,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Data
     let data;
 
-    d3.json('../../data/facebook-alphas.json').then(json => {
+    d3.json('../../data/lee-params.json').then(json => {
         data = json;
 
         // Set label

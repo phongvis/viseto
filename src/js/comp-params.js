@@ -9,29 +9,35 @@ pv.vis.compParams = function() {
      * Visual configs.
      */
     const margin = { top: 15, right: 5, bottom: 5, left: 5 },
-        sumRowHeight = 15,
+        sumRowHeight = 0,
         rowHeight = 15,
         rowGap = 0,
         maxCellWidth = 40,
-        cellGap = 10,
-        sumLabelWidth = 50;
+        cellGap = 5,
+        sumLabelWidth = 50,
+        groupGap = 15,
+        groupHeight = 15;
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
         detailHeight, // Height for the detail view
-        detailOffset;
+        detailOffset,
+        groupWidth;
 
     /**
      * Accessors.
      */
     let values = d => d.values,
-        label = d => d.label;
+        label = d => d.label,
+        groupBy1 = d => d.groupBy1,
+        groupBy2 = d => d.groupBy2;
 
     /**
      * Data binding to DOM elements.
      */
     let models,
         sumData,
+        groupData,
         rowData,
         activeRowData,
         dataChanged = true; // True to redo all data-related computations
@@ -41,6 +47,7 @@ pv.vis.compParams = function() {
      */
     let visContainer, // Containing the entire visualization
         sumContainer,
+        groupContainer,
         colContainer,
         rowContainer;
 
@@ -61,10 +68,11 @@ pv.vis.compParams = function() {
             if (!this.visInitialized) {
                 visContainer = d3.select(this).append('g').attr('class', 'pv-comp-params');
                 sumContainer = visContainer.append('g').attr('class', 'sums');
+                groupContainer = visContainer.append('g').attr('class', 'groups');
                 colContainer = visContainer.append('g').attr('class', 'cols');
                 rowContainer = visContainer.append('g').attr('class', 'rows');
 
-                sumContainer.append('g').attr('class', 'axis').call(sumAxis);
+                // sumContainer.append('g').attr('class', 'axis').call(sumAxis);
 
                 this.visInitialized = true;
             }
@@ -86,10 +94,13 @@ pv.vis.compParams = function() {
          */
         // Updates that depend only on data change
         if (dataChanged) {
-            detailOffset = models.length * sumRowHeight + 30;
+            detailOffset = models.length * sumRowHeight + groupHeight + 30;
             rowData = computeRowData();
             colData = models;
             sumData = computeSummaryData();
+            groupData = groupModels(models);
+
+            widthScale.domain([0, d3.max(_.flatten(models.map(values)).map(_.sum))]);
 
             sumScale.domain([d3.min(sumData, d => d.min), d3.max(sumData, d => d.max)]);
         }
@@ -101,6 +112,7 @@ pv.vis.compParams = function() {
         sumScale.range([0, width - sumLabelWidth]);
 
         visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
+        groupContainer.attr('transform', 'translate(0,' + (detailOffset - groupHeight) + ')');
         rowContainer.attr('transform', 'translate(0,' + detailOffset + ')');
         colContainer.attr('transform', 'translate(0,' + detailOffset + ')');
         sumContainer.attr('transform', 'translate(' + sumLabelWidth + ',0)');
@@ -108,6 +120,7 @@ pv.vis.compParams = function() {
             .call(sumAxis);
 
         // Updates that depend on both data and display change
+        layoutGroups();
         layoutSums();
         layoutRows();
         layoutCols();
@@ -115,10 +128,15 @@ pv.vis.compParams = function() {
         /**
          * Draw.
          */
-        const sums = sumContainer.selectAll('.sum').data(sumData);
-        sums.enter().append('g').attr('class', 'sum').call(enterSums)
-            .merge(sums).call(updateSums);
-        sums.exit().transition().attr('opacity', 0).remove();
+        // const sums = sumContainer.selectAll('.sum').data(sumData);
+        // sums.enter().append('g').attr('class', 'sum').call(enterSums)
+        //     .merge(sums).call(updateSums);
+        // sums.exit().transition().attr('opacity', 0).remove();
+
+        const groups = groupContainer.selectAll('.group').data(groupData);
+        groups.enter().append('g').attr('class', 'group').call(enterGroups)
+            .merge(groups).call(updateGroups);
+        groups.exit().transition().attr('opacity', 0).remove();
 
         const cols = colContainer.selectAll('.col').data(colData);
         cols.enter().append('g').attr('class', 'col').call(enterCols)
@@ -268,6 +286,32 @@ pv.vis.compParams = function() {
     }
 
     /**
+     * Called when new groups added.
+     */
+    function enterGroups(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('opacity', 0);
+
+        container.append('text')
+            .html(d => d.label);
+    }
+
+    /**
+     * Called when groups updated.
+     */
+    function updateGroups(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            // Transition location & opacity
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('opacity', 1);
+        });
+    }
+
+    /**
      * Called when new cols added.
      */
     function enterCols(selection) {
@@ -395,6 +439,24 @@ pv.vis.compParams = function() {
         });
     }
 
+    function groupModels(models) {
+        const groups = _.uniq(models.map(groupBy1)).sort((a, b) => d3.ascending(a, b));
+        groups.forEach((g, i) => {
+            models.filter(m => groupBy1(m) === g)
+                .sort((a,b) => d3.ascending(groupBy2(a), groupBy2(b)))
+                .forEach((m, j) => {
+                    m.level1 = i
+                    m.level2 = j;
+                });
+        });
+
+        groupWidth = (maxCellWidth + cellGap) * groups.length + groupGap;
+
+        return groups.map(g => ({
+            label: '&beta;=' + g
+        }));
+    }
+
     function layoutSums() {
         sumData.forEach((d, i) => {
             d.x = 0;
@@ -409,9 +471,16 @@ pv.vis.compParams = function() {
         });
     }
 
+    function layoutGroups() {
+        groupData.forEach((d, i) => {
+            d.x = groupWidth * i;
+            d.y = 0;
+        });
+    }
+
     function layoutCols() {
-        colData.forEach((d, i) => {
-            d.x = (maxCellWidth + cellGap) * i;
+        colData.forEach(d => {
+            d.x = groupWidth * d.level1 + (maxCellWidth + cellGap) * d.level2;
             d.y = 0;
         });
     }
@@ -478,6 +547,24 @@ pv.vis.compParams = function() {
     module.values = function(value) {
         if (!arguments.length) return values;
         values = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the groupBy level 1 for each model.
+     */
+    module.groupBy1 = function(value) {
+        if (!arguments.length) return groupBy1;
+        groupBy1 = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the groupBy level 2 for each model.
+     */
+    module.groupBy2 = function(value) {
+        if (!arguments.length) return groupBy2;
+        groupBy2 = value;
         return this;
     };
 
