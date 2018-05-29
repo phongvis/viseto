@@ -1,8 +1,8 @@
 /**
- * A visualization showing the difference between topics in mulitple runs with different number of topics.
- * Data input: an array with each element detailing each run
+ * A visualization showing the difference between topics in mulitple models with different number of topics.
+ * Data input: an array with each element detailing each model
  * - topics: array of { (word, prob) } showing topic details
- * - diff: 2d numerical matrix showing difference between the previous run and the current run
+ * - diff: 2d numerical matrix showing difference between the previous model and the current model
  */
 pv.vis.topicdiff = function() {
     /**
@@ -73,9 +73,9 @@ pv.vis.topicdiff = function() {
 
             // Assign id for binding
             topicLookup = {};
-            data.forEach((run, i) => {
-                run.id = i;
-                run.topics.forEach((topic, j) => {
+            data.forEach((model, i) => {
+                model.id = i;
+                model.topics.forEach((topic, j) => {
                     topic.id = i + '-' + j;
                     topic.children = [];
                     topicLookup[topic.id] = topic;
@@ -200,35 +200,52 @@ pv.vis.topicdiff = function() {
             .text('Explore Topics');
     }
 
-    function buildTree(runs) {
+    function buildTree(models) {
         const root = {}; // a dummy root of the forest
 
-        runs.forEach((r, i) => {
-            // Each topic in the first run is a child of the root
+        models.forEach((m, i) => {
+            // Each topic in the first model is a child of the root
             if (i === 0) {
-                root.children = r.topics;
+                root.children = m.topics;
                 return;
             }
 
-            // A topic c is a child of a topic p in the previous run
-            // if p is the most similar topic to c of all topics in the previous run.
-            for (let c = 0; c < r.diff[0].length; c++) { // each topic in the current run
-                let min = Number.MAX_VALUE,
-                    minIdx;
+            // // A topic c is a child of a topic p in the previous model
+            // // if of all topics in the previous model, p is the most similar topic to c.
+            // for (let c = 0; c < m.diff[0].length; c++) { // each topic in the current model
+            //     let min = Number.MAX_VALUE,
+            //         minIdx;
 
-                for (let p = 0; p < r.diff.length; p++) { // each topic in the previous run
-                    if (r.diff[p][c] < min) {
-                        min = r.diff[p][c];
-                        minIdx = p;
+            //     for (let p = 0; p < m.diff.length; p++) { // each topic in the previous model
+            //         if (m.diff[p][c] < min) {
+            //             min = m.diff[p][c];
+            //             minIdx = p;
+            //         }
+            //     };
+
+            //     models[i - 1].topics[minIdx].children.push({ topic: m.topics[c], value: min });
+            // }
+
+            // A topic c is a child of a topic p in the previous model
+            // if of all topics in the previous model, p is the most similar topic to c.
+            m.topics.forEach(c => {
+                let minValue = Number.MAX_VALUE,
+                    minTopic;
+
+                models[i - 1].topics.forEach(p => {
+                    const d = diffTopics(p, c);
+                    if (d < minValue) {
+                        minValue = d;
+                        minTopic = p;
                     }
-                };
+                });
 
-                runs[i - 1].topics[minIdx].children.push({ topic: r.topics[c], value: min });
-            }
+                minTopic.children.push({ topic: c, value: minValue });
+            });
 
-            // Sort topics in the current run.
-            // In fact, sort children topics in each parent topic in the previous run.
-            runs[i - 1].topics.forEach(topic => {
+            // Sort topics in the current model.
+            // In fact, sort children topics in each parent topic in the previous model.
+            models[i - 1].topics.forEach(topic => {
                 topic.children.sort((a, b) => d3.ascending(a.value, b.value));
                 topic.children = topic.children.map(t => t.topic);
             });
@@ -241,6 +258,33 @@ pv.vis.topicdiff = function() {
         matrix.forEach(row => {
             console.log(row.map(col => col.toFixed(2)).join(' '));
         });
+    }
+
+    /**
+     * Return the Hellinger distance between two discrete probability distributions.
+     */
+    function hellinger(p, q) {
+        return Math.sqrt(0.5 * _.sum(_.times(p.length, i => Math.pow((Math.sqrt(p[i]) - Math.sqrt(q[i])), 2))));
+    }
+
+    /**
+     * Compare difference between two topics using Hellinger distance.
+     */
+    function diffTopics(a, b) {
+        // Each topic is an array of (term, prob).
+        // We need to create an array of shared terms between two given topics to make them comparable.
+        const uniqueTerms = _.uniq(a.map(term).concat(b.map(term)));
+
+        function toVector(topic) {
+            const dict = {};
+            topic.forEach(t => {
+                dict[term(t)] = prob(t);
+            });
+
+            return uniqueTerms.map(t => dict[t] || 0);
+        }
+
+        return hellinger(toVector(a), toVector(b));
     }
 
     /**
