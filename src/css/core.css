@@ -1,7 +1,6 @@
-body {
-    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-    font-size: 11px;
-    cursor: default;
+/* --- General --- */
+* {
+    box-sizing: border-box;
 }
 
 html, body {
@@ -9,10 +8,14 @@ html, body {
     height: 100%;
     margin: 0;
     padding: 0;
+    font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+    font-size: 11px;
+    cursor: default;
+    overflow: hidden;
 }
 
 svg {
-    display: block;
+    /* display: block; */
 }
 
 text {
@@ -21,6 +24,52 @@ text {
     fill: hsl(0, 0%, 60%);
 }
 
+/* --- General --- */
+
+/* --- Dashboard --- */
+.vis {
+    width: 100%;
+    height: 100%;
+    background-color: white;
+    border: 1px solid hsl(0, 0%, 80%);
+    border-radius: 3px;
+}
+
+.vis-header {
+    background-color: hsl(0, 0%, 90%);
+    padding: 3px;
+    height: 25px;
+}
+
+.vis-header .title {
+    font-weight: bold;
+    font-family: fantasy;
+    font-size: 1.3em;
+    float: left;
+}
+
+.settings .setting {
+    display: inline-block;
+    margin-left: 20px;
+    float: right;
+}
+
+.settings label {
+    margin-right: 3px;
+}
+
+.settings a,
+.settings select {
+    margin-left: 3px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* --- Dashboard --- */
+
+/* --- D3 --- */
 /* Brush */
 .brush .selection {
     fill-opacity: 0.2;
@@ -49,11 +98,4 @@ rect {
     stroke: hsl(0, 0%, 60%);
 }
 
-.settings div {
-    display: inline;
-    margin-right: 10px;
-}
-
-.hidden {
-    display: none;
-}
+/* --- D3 --- */

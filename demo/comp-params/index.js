@@ -1,9 +1,17 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
-    const vis = pv.vis.compParams()
+    const visDocTopics = pv.vis.compParams()
+        .values(d => d.doc_topics)
+        .visTitle('Document Topics')
+        .minValue(0.1)
+        .termLabels(['documents', 'topics'])
+        .minProbLabel('Min Topic Probability');
+    const visTopicTerms = pv.vis.compParams()
         .values(d => d.topic_terms)
-        .groupBy1(d => d.beta)
-        .groupBy2(d => d.alpha);
+        .visTitle('Topic Terms')
+        .minValue(0.02)
+        .termLabels(['topics', 'terms'])
+        .minProbLabel('Min Term Probability');
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
@@ -14,11 +22,6 @@ document.addEventListener('DOMContentLoaded', function() {
     d3.json('../../data/lee-params.json').then(json => {
         data = json;
 
-        // Set label
-        data.forEach(d => {
-            d.label = '&alpha;=' + d.alpha;
-        });
-
         // Build the vis
         update();
     });
@@ -28,14 +31,18 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function update() {
         // Update size of the vis
-        vis.width(window.innerWidth)
-            .height(window.innerHeight);
+        let rect = pv.getContentRect(document.querySelector('.doc-topics'));
+        visDocTopics.width(rect[0]).height(rect[1]);
+
+        rect = pv.getContentRect(document.querySelector('.topic-terms'));
+        visTopicTerms.width(rect[0]).height(rect[1]);
 
         // Update size of the vis container and redraw
-        d3.select('.pv-vis-demo')
-            .attr('width', window.innerWidth)
-            .attr('height', window.innerHeight)
+        d3.select('.doc-topics')
             .datum(data)
-            .call(vis);
+            .call(visDocTopics);
+        d3.select('.topic-terms')
+            .datum(data)
+            .call(visTopicTerms);
     }
 });

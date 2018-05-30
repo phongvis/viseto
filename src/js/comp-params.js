@@ -1,63 +1,58 @@
 /**
  * Compare the distribution of values in multiple models accross data points.
  * Data input: an array with each element detailing each model to compare
- * - label: the parameter that makes those models different
  * - values: an array of values, each for a data point
  */
 pv.vis.compParams = function() {
     /**
      * Visual configs.
      */
-    const margin = { top: 15, right: 5, bottom: 5, left: 5 },
-        sumRowHeight = 0,
-        rowHeight = 15,
-        rowGap = 0,
-        maxCellWidth = 40,
-        cellGap = 5,
-        sumLabelWidth = 50,
-        groupGap = 15,
-        groupHeight = 15;
+    const margin = { top: 40, right: 3, bottom: 10, left: 18 };
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
-        detailHeight, // Height for the detail view
-        detailOffset,
-        groupWidth;
+        visTitle = 'Document Topics',
+        cellWidth,
+        cellHeight,
+        rowLabel = '&alpha;',
+        colLabel = '&beta;',
+        termLabels = ['documents', 'topics'],
+        minProbLabel = 'Min Topic Probability',
+        minValue = 0.1,
+        stepValue = 0.01;
 
     /**
      * Accessors.
      */
-    let values = d => d.values,
-        label = d => d.label,
-        groupBy1 = d => d.groupBy1,
-        groupBy2 = d => d.groupBy2;
+    let id = d => d.id,
+        rowValue = d => d.alpha,
+        colValue = d => d.beta,
+        values = d => d.values;
 
     /**
      * Data binding to DOM elements.
      */
     let models,
-        sumData,
-        groupData,
         rowData,
-        activeRowData,
+        colData,
+        cellData,
+        bins, // d3-histogram bins
         dataChanged = true; // True to redo all data-related computations
 
     /**
      * DOM.
      */
     let visContainer, // Containing the entire visualization
-        sumContainer,
-        groupContainer,
+        rowContainer,
         colContainer,
-        rowContainer;
+        cellContainer;
 
     /**
      * D3.
      */
     const listeners = d3.dispatch('click'),
-        widthScale = d3.scaleLinear().range([0, maxCellWidth]),
-        sumScale = d3.scaleLog(),
-        sumAxis = d3.axisBottom(sumScale);
+        xScale = d3.scaleLinear(),
+        yScale = d3.scaleLinear();
 
     /**
      * Main entry of the module.
@@ -66,13 +61,13 @@ pv.vis.compParams = function() {
         selection.each(function(_data) {
             // Initialize
             if (!this.visInitialized) {
-                visContainer = d3.select(this).append('g').attr('class', 'pv-comp-params');
-                sumContainer = visContainer.append('g').attr('class', 'sums');
-                groupContainer = visContainer.append('g').attr('class', 'groups');
-                colContainer = visContainer.append('g').attr('class', 'cols');
+                const container = d3.select(this).append('g').attr('class', 'pv-comp-params');
+                visContainer = container.append('g').attr('class', 'main-vis');
                 rowContainer = visContainer.append('g').attr('class', 'rows');
+                colContainer = visContainer.append('g').attr('class', 'cols');
+                cellContainer = visContainer.append('g').attr('class', 'cells');
 
-                // sumContainer.append('g').attr('class', 'axis').call(sumAxis);
+                addSettings(container);
 
                 this.visInitialized = true;
             }
@@ -94,247 +89,139 @@ pv.vis.compParams = function() {
          */
         // Updates that depend only on data change
         if (dataChanged) {
-            detailOffset = models.length * sumRowHeight + groupHeight + 30;
-            rowData = computeRowData();
-            colData = models;
-            sumData = computeSummaryData();
-            groupData = groupModels(models);
+            rowData = buildRowData();
+            colData = buildColData();
+            cellData = buildCellData();
 
-            widthScale.domain([0, d3.max(_.flatten(models.map(values)).map(_.sum))]);
+            const minBin = d3.min(cellData, m => d3.min(m.numTopics)),
+                maxBin = d3.max(cellData, m => d3.max(m.numTopics)) + 1; // +1 because x1 of the last d3-bin is inclusive
 
-            sumScale.domain([d3.min(sumData, d => d.min), d3.max(sumData, d => d.max)]);
+            function createBins(m) {
+                return d3.histogram()
+                    .domain(xScale.domain())
+                    .thresholds(maxBin - minBin)
+                    (m.numTopics);
+            }
+
+            xScale.domain([minBin, maxBin]);
+            bins = cellData.map(createBins);
+            yScale.domain([0, d3.max(_.flatten(bins), d => d.length)]);
         }
 
         // Canvas update
         width = visWidth - margin.left - margin.right;
         height = visHeight - margin.top - margin.bottom;
-        detailHeight = height - detailOffset;
-        sumScale.range([0, width - sumLabelWidth]);
+        cellWidth = Math.floor(width / colData.length);
+        cellHeight = Math.floor(height / rowData.length);
 
         visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-        groupContainer.attr('transform', 'translate(0,' + (detailOffset - groupHeight) + ')');
-        rowContainer.attr('transform', 'translate(0,' + detailOffset + ')');
-        colContainer.attr('transform', 'translate(0,' + detailOffset + ')');
-        sumContainer.attr('transform', 'translate(' + sumLabelWidth + ',0)');
-        sumContainer.select('.axis').attr('transform', 'translate(0,' + (models.length * sumRowHeight - 10) + ')')
-            .call(sumAxis);
+        xScale.range([0, cellWidth]);
+        yScale.range([cellHeight, 1]);
 
         // Updates that depend on both data and display change
-        layoutGroups();
-        layoutSums();
         layoutRows();
         layoutCols();
+        layoutCells();
 
         /**
          * Draw.
          */
-        // const sums = sumContainer.selectAll('.sum').data(sumData);
-        // sums.enter().append('g').attr('class', 'sum').call(enterSums)
-        //     .merge(sums).call(updateSums);
-        // sums.exit().transition().attr('opacity', 0).remove();
-
-        const groups = groupContainer.selectAll('.group').data(groupData);
-        groups.enter().append('g').attr('class', 'group').call(enterGroups)
-            .merge(groups).call(updateGroups);
-        groups.exit().transition().attr('opacity', 0).remove();
-
-        const cols = colContainer.selectAll('.col').data(colData);
-        cols.enter().append('g').attr('class', 'col').call(enterCols)
-            .merge(cols).call(updateCols);
-        cols.exit().transition().attr('opacity', 0).remove();
-
-        const rows = rowContainer.selectAll('.row').data(activeRowData);
-        rows.enter().append('g').attr('class', 'row').call(enterRows)
-            .merge(rows).call(updateRows);
-        rows.exit().transition().attr('opacity', 0).remove();
+        pv.enterUpdate(rowData, rowContainer, enterRows, updateRows, id, 'row');
+        pv.enterUpdate(colData, colContainer, enterCols, updateCols, id, 'col');
+        pv.enterUpdate(cellData, cellContainer, enterCells, updateCells, id, 'cell');
     }
 
     /**
-     * Return data bound to each summary.
+     * Return data bound to each row, each is a unique value from `rowValue` in the models.
      */
-    function computeSummaryData() {
-        return models.map((m, i) => {
-            // Exclude 0 for log axis
-            const values = rowData.map(r => r[i].variance).filter(v => v > 0).sort(d3.ascending);
-
-            return {
-                label: label(m),
-                min: values[0],
-                max: _.last(values),
-                mean: d3.mean(values),
-                deviation: d3.deviation(values),
-                q1: d3.quantile(values, 0.25),
-                q2: d3.quantile(values, 0.5),
-                q3: d3.quantile(values, 0.75),
-                values: values.map(v => ({ value: v }))
-            };
-        });
+    function buildRowData() {
+        return _.uniq(models.map(rowValue))
+            .sort(d3.ascending)
+            .map(x => ({ id: x, value: x, label: rowLabel + '=' + x }));
     }
 
     /**
-     * Return data bound to each row.
+     * Return data bound to each col, each is a unique value from `colValue` in the models.
      */
-    function computeRowData() {
-        if (!models.length) return [];
-
-        const numRows = values(models[0]).length;
-        return _.range(numRows).map(getRowDatum);
+    function buildColData() {
+        return _.uniq(models.map(colValue))
+            .sort(d3.ascending)
+            .map(x => ({ id: x, value: x, label: colLabel + '=' + x }));
     }
 
-    function getRowDatum(rowIdx) {
+    /**
+     * Return data bound to each cell.
+     */
+    function buildCellData() {
         return models.map((m, i) => ({
-            modelIdx: i,
-            values: values(m)[rowIdx].map(v => ({ value: v })),
-            variance: d3.variance(values(m)[rowIdx]),
-            title: values(m)[rowIdx].join('\n')
+            // Find position of cells in the matrix
+            rowIdx: rowData.findIndex(r => r.value === rowValue(m)),
+            colIdx: colData.findIndex(c => c.value === colValue(m)),
+
+            // In each document/topic, count how many topics/terms that have probability above the threshold
+            numTopics: values(m).map(d => d.filter(x => x >= minValue).length),
+
+            // Assign id for binding
+            id: i
         }));
     }
 
     /**
-     * Called when new sums added.
+     * Compute x, y positions for each row datum.
      */
-    function enterSums(selection) {
-        const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0);
-
-        container.append('text')
-            .attr('x', -sumLabelWidth)
-            .html(label);
-
-        // Quantiles
-        container.append('rect').attr('class', 'iqr')
-            .attr('y', -10)
-            .attr('height', 10);
-        container.append('line').attr('class', 'q2')
-            .attr('y1', -10)
-            .attr('y2', 0);
-        container.append('line').attr('class', 'low')
-            .attr('y1', -5)
-            .attr('y2', -5);
-        container.append('line').attr('class', 'high')
-            .attr('y1', -5)
-            .attr('y2', -5);
-    }
-
-    /**
-     * Called when sums updated.
-     */
-    function updateSums(selection) {
-        selection.each(function(d, i) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
-
-            const k = 4.5,
-                iqr = d.q3 - d.q1,
-                low = d.q1 - k * iqr,
-                high = d.q3 + k * iqr,
-                dotData = d.values.filter(x => x.value < low || x.value > high);
-
-            layoutDots(dotData);
-
-            const dots = container.selectAll('.dot').data(dotData);
-            dots.enter().append('g').attr('class', 'dot').call(enterDots)
-                .merge(dots).call(updateDots);
-            dots.exit().transition().attr('opacity', 0).remove();
-
-            // Quantiles
-            container.select('.iqr')
-                .attr('x', sumScale(d.q1))
-                .attr('width', sumScale(d.q3) - sumScale(d.q1));
-            container.select('.q2')
-                .attr('x1', sumScale(d.q2))
-                .attr('x2', sumScale(d.q2));
-            container.select('.low')
-                .attr('x1', sumScale(low) || 0)
-                .attr('x2', sumScale(d.q1));
-            container.select('.high')
-                .attr('x1', sumScale(high))
-                .attr('x2', sumScale(d.q3));
+    function layoutRows() {
+        rowData.forEach((d, i) => {
+            d.x = cellWidth * (i + 0.5);
+            d.y = 0;
         });
     }
 
     /**
-     * Called when new dots added.
+     * Compute x, y positions for each col datum.
      */
-    function enterDots(selection) {
-        const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0);
-
-        container.append('circle')
-            .attr('r', 2.5)
-            .append('title').text(d => d.values);
-    }
-
-    /**
-     * Called when dots updated.
-     */
-    function updateDots(selection) {
-        selection.each(function(d, i) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
+    function layoutCols() {
+        colData.forEach((d, i) => {
+            d.x = 0;
+            d.y = cellHeight * (colData.length - 0.5 - i);
         });
     }
 
     /**
-     * Called when new groups added.
+     * Compute x, y positions for each cell datum.
      */
-    function enterGroups(selection) {
-        const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0);
-
-        container.append('text')
-            .html(d => d.label);
-    }
-
-    /**
-     * Called when groups updated.
-     */
-    function updateGroups(selection) {
-        selection.each(function(d, i) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
+    function layoutCells() {
+        cellData.forEach(d => {
+            d.x = rowData[d.colIdx].x - cellWidth * 0.5;
+            d.y = colData[d.rowIdx].y - cellHeight * 0.5;
+            d.width = cellWidth;
+            d.height = cellHeight;
         });
     }
 
-    /**
-     * Called when new cols added.
-     */
-    function enterCols(selection) {
-        const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0);
+    function addSettings(container) {
+        container = container.append('foreignObject').attr('class', 'settings')
+            .attr('width', '100%').attr('height', '100%')
+            .append('xhtml:div').attr('class', 'vis-header');
 
-        container.append('text')
-            .html(label);
-    }
+        // Title
+        container.append('xhtml:div').attr('class', 'title').text(visTitle);
 
-    /**
-     * Called when cols updated.
-     */
-    function updateCols(selection) {
-        selection.each(function(d, i) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
-        });
+        // Min probability
+        let div = container.append('xhtml:div').attr('class', 'setting min-prob');
+        div.append('xhtml:label')
+            .text(minProbLabel + ': ');
+        div.append('xhtml:input')
+            .attr('type', 'number')
+            .attr('min', 0.01)
+            .attr('max', 1)
+            .attr('value', minValue)
+            .attr('step', stepValue)
+            .on('input', function() {
+                minValue = this.value;
+                div.select('#lblValue').text(minValue);
+                dataChanged = true;
+                update();
+            });
     }
 
     /**
@@ -344,26 +231,50 @@ pv.vis.compParams = function() {
         const container = selection
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 0);
+
+        container.append('text');
     }
 
     /**
      * Called when rows updated.
      */
     function updateRows(selection) {
-        selection.each(function(d, i) {
+        selection.each(function(d) {
             const container = d3.select(this);
 
-            // Transition location & opacity
             container.transition()
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
 
-            layoutCells(d);
+            container.select('text')
+                .html(d => d.label);
+        });
+    }
 
-            const cells = container.selectAll('.cell').data(d);
-            cells.enter().append('g').attr('class', 'cell').call(enterCells)
-                .merge(cells).call(updateCells);
-            cells.exit().transition().attr('opacity', 0).remove();
+    /**
+     * Called when new cols added.
+     */
+    function enterCols(selection) {
+        const container = selection
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
+            .attr('opacity', 0);
+
+        container.append('text').attr('dy', '-3');
+    }
+
+    /**
+     * Called when cols updated.
+     */
+    function updateCols(selection) {
+        selection.each(function(d, i) {
+            const container = d3.select(this);
+
+            container.transition()
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
+                .attr('opacity', 1);
+
+            container.select('text')
+                .html(d => d.label);
         });
     }
 
@@ -375,24 +286,17 @@ pv.vis.compParams = function() {
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 0);
 
-        container.append('g').attr('class', 'bars');
+        // Border
         container.append('rect').attr('class', 'container');
-        container.append('title').text(d => d.title);
-
-        container.on('mouseover', function() {
-            // Move the '.row' up to make its border stand out (:hover in css)
-            d3.select(this.parentNode).raise();
-        });
     }
 
     /**
      * Called when cells updated.
      */
     function updateCells(selection) {
-        selection.each(function(d) {
+        selection.each(function(d, i) {
             const container = d3.select(this);
 
-            // Transition location & opacity
             container.transition()
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
@@ -401,12 +305,7 @@ pv.vis.compParams = function() {
                 .attr('width', d.width)
                 .attr('height', d.height);
 
-            layoutBars(d.values);
-
-            const bars = container.select('.bars').selectAll('.bar').data(d.values);
-            bars.enter().append('g').attr('class', 'bar').call(enterBars)
-                .merge(bars).call(updateBars);
-            bars.exit().transition().attr('opacity', 0).remove();
+            pv.enterUpdate(bins[i], container, enterBars, updateBars, d => d.x0, 'bar');
         });
     }
 
@@ -415,102 +314,36 @@ pv.vis.compParams = function() {
      */
     function enterBars(selection) {
         const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .attr('opacity', 0);
+            .attr('transform', d => 'translate(' + xScale(d.x0) + ',' + yScale(d.length) + ')');
 
-        container.append('rect');
+        container.append('rect')
+            .attr('x', 1);
+
+        container.append('text')
+
+        container.append('title');
     }
 
     /**
      * Called when bars updated.
      */
     function updateBars(selection) {
-        selection.each(function(d) {
-            const container = d3.select(this);
-
-            // Transition location & opacity
-            container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
-                .attr('opacity', 1);
+        selection.each(function(d, i) {
+            const container = d3.select(this)
+                .attr('transform', 'translate(' + xScale(d.x0) + ',' + yScale(d.length) + ')');
 
             container.select('rect')
-                .attr('width', d.width)
-                .attr('height', d.height);
-        });
-    }
+                .attr('width', xScale(d.x1) - xScale(d.x0) - (i === selection.size() - 1 ? 2 : 1))
+                .attr('height', Math.max(0, cellHeight - 1 - yScale(d.length)));
 
-    function groupModels(models) {
-        const groups = _.uniq(models.map(groupBy1)).sort((a, b) => d3.ascending(a, b));
-        groups.forEach((g, i) => {
-            models.filter(m => groupBy1(m) === g)
-                .sort((a,b) => d3.ascending(groupBy2(a), groupBy2(b)))
-                .forEach((m, j) => {
-                    m.level1 = i
-                    m.level2 = j;
-                });
-        });
+            container.select('text')
+                .classed('hidden', d3.select(this.parentNode).datum().rowIdx) // Only visible in the last row
+                .attr('y', cellHeight - yScale(d.length))
+                .attr('x', (xScale(d.x1) - xScale(d.x0)) / 2)
+                .text(d.x0);
 
-        groupWidth = (maxCellWidth + cellGap) * groups.length + groupGap;
-
-        return groups.map(g => ({
-            label: '&beta;=' + g
-        }));
-    }
-
-    function layoutSums() {
-        sumData.forEach((d, i) => {
-            d.x = 0;
-            d.y = sumRowHeight * i;
-        });
-    }
-
-    function layoutDots(data) {
-        data.forEach(d => {
-            d.x = sumScale(d.value);
-            d.y = -5;
-        });
-    }
-
-    function layoutGroups() {
-        groupData.forEach((d, i) => {
-            d.x = groupWidth * i;
-            d.y = 0;
-        });
-    }
-
-    function layoutCols() {
-        colData.forEach(d => {
-            d.x = groupWidth * d.level1 + (maxCellWidth + cellGap) * d.level2;
-            d.y = 0;
-        });
-    }
-
-    function layoutRows() {
-        const numVisibleRows = Math.floor(detailHeight / (rowHeight + rowGap));
-        activeRowData = rowData.slice(0, numVisibleRows);
-
-        activeRowData.forEach((d, i) => {
-            d.x = 0;
-            d.y = (rowHeight + rowGap)  * i;
-        });
-    }
-
-    function layoutCells(data) {
-        data.forEach((d, i) => {
-            d.x = colData[i].x;
-            d.y = 0;
-            d.width = maxCellWidth;
-            d.height = rowHeight;
-        });
-    }
-
-    function layoutBars(data) {
-        let sum = 0;
-        data.forEach((d, i) => {
-            d.x = sum;
-            sum += d.width = widthScale(d.value);
-            d.y = 0;
-            d.height = rowHeight;
+            container.select('title')
+                .text(d.length + ' ' + termLabels[0] + ' with ' + d.x0 + ' ' + termLabels[1]);
         });
     }
 
@@ -533,11 +366,38 @@ pv.vis.compParams = function() {
     };
 
     /**
-     * Sets/gets the label for each model.
+     * Sets/gets the title of the visualization.
      */
-    module.label = function(value) {
-        if (!arguments.length) return label;
-        label = value;
+    module.visTitle = function(value) {
+        if (!arguments.length) return visTitle;
+        visTitle = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the minimum probability.
+     */
+    module.minValue = function(value) {
+        if (!arguments.length) return minValue;
+        minValue = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the term labels.
+     */
+    module.termLabels = function(value) {
+        if (!arguments.length) return termLabels;
+        termLabels = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the minimum probability label in the settings.
+     */
+    module.minProbLabel = function(value) {
+        if (!arguments.length) return minProbLabel;
+        minProbLabel = value;
         return this;
     };
 
@@ -547,24 +407,6 @@ pv.vis.compParams = function() {
     module.values = function(value) {
         if (!arguments.length) return values;
         values = value;
-        return this;
-    };
-
-    /**
-     * Sets/gets the groupBy level 1 for each model.
-     */
-    module.groupBy1 = function(value) {
-        if (!arguments.length) return groupBy1;
-        groupBy1 = value;
-        return this;
-    };
-
-    /**
-     * Sets/gets the groupBy level 2 for each model.
-     */
-    module.groupBy2 = function(value) {
-        if (!arguments.length) return groupBy2;
-        groupBy2 = value;
         return this;
     };
 
