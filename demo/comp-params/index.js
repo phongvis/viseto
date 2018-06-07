@@ -33,6 +33,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update size of the vis
         let rect = pv.getContentRect(document.querySelector('.doc-topics'));
         visDocTopics.width(rect[0]).height(rect[1]);
+console.log(rect);
 
         rect = pv.getContentRect(document.querySelector('.topic-terms'));
         visTopicTerms.width(rect[0]).height(rect[1]);

@@ -8,28 +8,19 @@
         <link rel='stylesheet' href='../../src/css/comp-params.css'>
 
         <style>
-            .top-container {
-                width: calc(100% - 6px);
-                height: calc(100% - 6px);
-                margin: 3px;
-            }
-
-            .doc-topics {
-                width: calc(50% - 1.5px);
-                float: left;
-            }
-
-            .topic-terms {
-                width: calc(50% - 1.5px);
-                float: right;
+            body {
+                width: 100%;
+                height: 100%;
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+                gap: 3px;
+                padding: 3px;
             }
         </style>
     </head>
     <body>
-        <div class='top-container'>
-            <svg class='vis doc-topics'></svg>
-            <svg class='vis topic-terms'></svg>
-        </div>
+        <svg class='vis doc-topics'></svg>
+        <svg class='vis topic-terms'></svg>
 
         <script src='../../src/lib/d3.min.js'></script>
         <script src='../../src/lib/lodash.min.js'></script>
