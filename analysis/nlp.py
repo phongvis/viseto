@@ -61,6 +61,6 @@ def build_doc2vec(docs, vector_size=100, window=5, min_count=10, epochs=100, ran
     model.train(tagged_docs, total_examples=model.corpus_count, epochs=model.epochs)
     return model
 
-def build_word2vec(sentences, iter=100):
+def build_word2vec(sentences, size=100, window=5, min_count=10, iter=100, random_state=0):
     'Return word2vec model from a sentence collection.'
-    return Word2Vec(sentences, iter=iter)
+    return Word2Vec(sentences, size=size, window=window, min_count=min_count, iter=iter, seed=random_state)
