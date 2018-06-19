@@ -7,15 +7,19 @@ stop = set(stopwords.words('english'))
 exclude = set(string.punctuation + '“”’—')
 lemma = WordNetLemmatizer()
 
-from gensim import corpora
-from gensim.models.ldamodel import LdaModel
-
 import spacy
 spa = spacy.load('en')
 
+from gensim import corpora
+from gensim.models.ldamodel import LdaModel
 from gensim.models.doc2vec import TaggedDocument
 from gensim.models.doc2vec import Doc2Vec
 from gensim.models import Word2Vec
+
+import numpy as np
+
+from collections import defaultdict
+
 
 def load_file(filename, parse=lambda x: x):
     'Load a text file and return lines after being parsed.'
@@ -52,6 +56,47 @@ def build_lda(docs, num_topics=10, min_count=10, passes=10, alpha='symmetric', e
     'Return LDA model from a document collection.'
     corpus, dictionary = build_corpus_dictionary(docs, min_count)
     return build_lda_with_corpus(corpus, dictionary, num_topics=num_topics, passes=passes, alpha=alpha, eta=eta, random_state=random_state)
+
+def get_doc_topic_matrix(lda, corpus):
+    'Return a matrix representation of documents x topics.'
+
+    def doc2vec(doc):
+        topics = lda.get_document_topics(doc)
+        v = np.zeros(lda.num_topics)
+
+        for t, p in topics:
+            v[t] = p
+
+        return v.reshape(1, -1)
+
+    return np.concatenate([doc2vec(doc) for doc in corpus])
+
+def get_strongest_document_topics(lda, corpus):
+    'Return a list of the strongest topic for each document.'
+
+    def get_one(doc):
+        topics = lda.get_document_topics(doc, minimum_probability=0.01)
+        strongest_topic = max(topics, key=lambda x: x[1])
+        return strongest_topic[0]
+
+    return [get_one(doc) for doc in corpus]
+
+def get_strongest_term_topics(lda, vocab):
+    'Return the strongest topic associated with each term in the vocab.'
+    lookup = defaultdict(lambda: -1)
+    for t in lda.id2word:
+        topics = lda.get_term_topics(t)
+        if topics:
+            lookup[lda.id2word[t]] = topics[0][0]
+
+    return [lookup[t] for t in vocab]
+
+def get_topics(lda, topn=5):
+    'Return top terms for each topic in the model.'
+    def get_one(id):
+        return [lda.id2word[t] for t, p in lda.get_topic_terms(id, topn=topn)]
+
+    return [get_one(i) for i in range(lda.num_topics)]
 
 def build_doc2vec(docs, vector_size=100, window=5, min_count=10, epochs=100, random_state=0):
     'Return doc2vec model from a document collection.'
