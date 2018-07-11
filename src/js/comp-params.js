@@ -14,19 +14,20 @@ pv.vis.compParams = function() {
         visTitle = 'Document Topics',
         cellWidth,
         cellHeight,
-        rowLabel = '&alpha;',
-        colLabel = '&beta;',
+        rowLabel = '&beta;',
+        colLabel = '&alpha;',
         termLabels = ['documents', 'topics'],
         minProbLabel = 'Min Topic Probability',
         minValue = 0.1,
-        stepValue = 0.01;
+        stepValue = 0.01,
+        showSettings = false;
 
     /**
      * Accessors.
      */
     let id = d => d.id,
-        rowValue = d => d.alpha,
-        colValue = d => d.beta,
+        rowValue = d => d.beta,
+        colValue = d => d.alpha,
         values = d => d.values;
 
     /**
@@ -67,7 +68,9 @@ pv.vis.compParams = function() {
                 colContainer = visContainer.append('g').attr('class', 'cols');
                 cellContainer = visContainer.append('g').attr('class', 'cells');
 
-                addSettings(container);
+                if (showSettings) {
+                    addSettings(container);
+                }
 
                 this.visInitialized = true;
             }
@@ -90,6 +93,8 @@ pv.vis.compParams = function() {
         // Updates that depend only on data change
         if (dataChanged) {
             rowData = buildRowData();
+            console.log(rowData);
+
             colData = buildColData();
             cellData = buildCellData();
 
@@ -109,6 +114,7 @@ pv.vis.compParams = function() {
         }
 
         // Canvas update
+        margin.top = showSettings ? 40 : 15;
         width = visWidth - margin.left - margin.right;
         height = visHeight - margin.top - margin.bottom;
         cellWidth = Math.floor(width / colData.length);
@@ -171,8 +177,8 @@ pv.vis.compParams = function() {
      */
     function layoutRows() {
         rowData.forEach((d, i) => {
-            d.x = cellWidth * (i + 0.5);
-            d.y = 0;
+            d.x = 0;
+            d.y = cellHeight * (colData.length - 0.5 - i);
         });
     }
 
@@ -181,8 +187,8 @@ pv.vis.compParams = function() {
      */
     function layoutCols() {
         colData.forEach((d, i) => {
-            d.x = 0;
-            d.y = cellHeight * (colData.length - 0.5 - i);
+            d.x = cellWidth * (i + 0.5);
+            d.y = 0;
         });
     }
 
@@ -191,8 +197,8 @@ pv.vis.compParams = function() {
      */
     function layoutCells() {
         cellData.forEach(d => {
-            d.x = rowData[d.colIdx].x - cellWidth * 0.5;
-            d.y = colData[d.rowIdx].y - cellHeight * 0.5;
+            d.x = colData[d.colIdx].x - cellWidth * 0.5;
+            d.y = rowData[d.rowIdx].y - cellHeight * 0.5;
             d.width = cellWidth;
             d.height = cellHeight;
         });
@@ -200,7 +206,7 @@ pv.vis.compParams = function() {
 
     function addSettings(container) {
         container = container.append('foreignObject').attr('class', 'settings')
-            .attr('width', '100%').attr('height', '100%')
+            .attr('width', '100%').attr('height', '25px')
             .append('xhtml:div').attr('class', 'vis-header');
 
         // Title
@@ -229,10 +235,10 @@ pv.vis.compParams = function() {
      */
     function enterRows(selection) {
         const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
             .attr('opacity', 0);
 
-        container.append('text');
+        container.append('text').attr('dy', '-3');
     }
 
     /**
@@ -243,7 +249,7 @@ pv.vis.compParams = function() {
             const container = d3.select(this);
 
             container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
                 .attr('opacity', 1);
 
             container.select('text')
@@ -256,10 +262,10 @@ pv.vis.compParams = function() {
      */
     function enterCols(selection) {
         const container = selection
-            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
+            .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 0);
 
-        container.append('text').attr('dy', '-3');
+        container.append('text');
     }
 
     /**
@@ -270,7 +276,7 @@ pv.vis.compParams = function() {
             const container = d3.select(this);
 
             container.transition()
-                .attr('transform', 'translate(' + d.x + ',' + d.y + ') rotate(-90)')
+                .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
 
             container.select('text')
@@ -407,6 +413,15 @@ pv.vis.compParams = function() {
     module.values = function(value) {
         if (!arguments.length) return values;
         values = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the visbility of the settings.
+     */
+    module.showSettings = function(value) {
+        if (!arguments.length) return showSettings;
+        showSettings = value;
         return this;
     };
 

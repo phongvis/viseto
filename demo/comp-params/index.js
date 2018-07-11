@@ -5,13 +5,15 @@ document.addEventListener('DOMContentLoaded', function() {
         .visTitle('Document Topics')
         .minValue(0.1)
         .termLabels(['documents', 'topics'])
-        .minProbLabel('Min Topic Probability');
+        .minProbLabel('Min Topic Probability')
+        .showSettings(true);
     const visTopicTerms = pv.vis.compParams()
         .values(d => d.topic_terms)
         .visTitle('Topic Terms')
-        .minValue(0.02)
+        .minValue(0.01)
         .termLabels(['topics', 'terms'])
-        .minProbLabel('Min Term Probability');
+        .minProbLabel('Min Term Probability')
+        .showSettings(true);
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);

@@ -1,7 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
     const vis = pv.vis.compParams()
-        .values(d => d.doc_topics)
+        .values(d => d.topic_terms)
         .groupBy1(d => d.beta)
         .groupBy2(d => d.alpha);
 
