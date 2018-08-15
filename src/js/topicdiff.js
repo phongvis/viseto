@@ -17,6 +17,7 @@ pv.vis.topicdiff = function() {
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
+        colorMap,
         colorCodeTopWords = true,
         exploringMode = false,
         minProb = 0.1;
@@ -462,6 +463,7 @@ pv.vis.topicdiff = function() {
     }
 
     function getFillColor(word) {
+        // return colorMap[word];
         return !exploringMode && colorCodeTopWords && colorScale.domain().includes(word) ? colorScale(word) : normalFillColor;
     }
 
@@ -532,6 +534,15 @@ pv.vis.topicdiff = function() {
     module.prob = function(value) {
         if (!arguments.length) return prob;
         prob = value;
+        return this;
+    };
+
+    /**
+     * Sets/gets the color mapping.
+     */
+    module.colorMap = function(value) {
+        if (!arguments.length) return colorMap;
+        colorMap = value;
         return this;
     };
 

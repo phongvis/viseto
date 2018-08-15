@@ -11,12 +11,14 @@ document.addEventListener('DOMContentLoaded', function() {
     let data;
 
     d3.json('../../data/lss-17k-diff-topics-20.json').then(json => {
-        // d3.json('../../data/lee-k-20topics.json').then(json => {
         data = json.slice(0, 15);
-        // data = json;
 
-        // Build the vis
-        update();
+        d3.json('../../data/lss-17k-color-lookup.json').then(colorLookup => {
+            vis.colorMap(colorLookup);
+
+            // Build the vis
+            update();
+        });
     });
 
     /**
