@@ -41,19 +41,19 @@ def split_sentences(text):
     tokens = spa(text)
     return [sent.string.strip() for sent in tokens.sents]
 
-def build_corpus_dictionary(docs, min_count=10):
-    'Return gensim corpus and dictionary for a document collection.'
+def build_corpus_dictionary(docs, min_count=0):
+    'Return `gensim` corpus and dictionary for a list of documents.'
     dictionary = corpora.Dictionary(docs)
     dictionary.filter_extremes(no_below=min_count)
     corpus = [dictionary.doc2bow(doc) for doc in docs]
     return corpus, dictionary
 
 def build_lda_with_corpus(corpus, dictionary, num_topics=10, passes=10, alpha='symmetric', eta=None, random_state=0):
-    'Return LDA model from a gensim corpus.'
+    'Return a `gensim` LDA model from a `gensim` corpus.'
     return LdaModel(corpus, id2word=dictionary, num_topics=num_topics, passes=passes, alpha=alpha, eta=eta, random_state=random_state)
 
-def build_lda(docs, num_topics=10, min_count=10, passes=10, alpha='symmetric', eta=None, random_state=0):
-    'Return LDA model from a document collection.'
+def build_lda(docs, num_topics=10, min_count=0, passes=10, alpha='symmetric', eta=None, random_state=0):
+    'Return a `gensim` LDA model from a document collection.'
     corpus, dictionary = build_corpus_dictionary(docs, min_count)
     return build_lda_with_corpus(corpus, dictionary, num_topics=num_topics, passes=passes, alpha=alpha, eta=eta, random_state=random_state)
 
