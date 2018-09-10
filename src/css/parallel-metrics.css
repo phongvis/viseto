@@ -1,0 +1,25 @@
+.pv-parallel-metrics .metric .label {
+    font-weight: bold;
+    fill: black;
+    text-anchor: middle;
+    dominant-baseline: text-before-edge;
+}
+
+.pv-parallel-metrics .model {
+    opacity: 0.5;
+}
+
+.pv-parallel-metrics .model.brushed {
+    fill: orange;
+    opacity: 1;
+}
+
+.pv-parallel-metrics .model.hovered {
+    fill: red;
+    opacity: 1;
+}
+
+.pv-parallel-metrics .brush .selection {
+    fill: orange;
+    cursor: default;
+}
