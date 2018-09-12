@@ -51,18 +51,9 @@ text {
 }
 
 .settings .setting {
-    margin-left: 15px;
+    margin-left: 20px;
     margin-top: -1px;
     float: right;
-}
-
-.settings label {
-    margin-right: 3px;
-    margin-left: 3px;
-}
-
-.settings .setting .btn {
-    padding: 1px 0;
 }
 
 .hidden {

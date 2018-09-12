@@ -6,16 +6,16 @@
 }
 
 .pv-parallel-metrics .model {
-    opacity: 0.5;
+    /* opacity: 0.5; */
 }
 
 .pv-parallel-metrics .model.brushed {
-    fill: orange;
+    stroke: black;
     opacity: 1;
 }
 
 .pv-parallel-metrics .model.hovered {
-    fill: red;
+    stroke: red;
     opacity: 1;
 }
 

@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         pmData.models.forEach(m => {
             m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
+            m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}`;
         });
 
         // Build the vises
