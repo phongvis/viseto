@@ -6,13 +6,14 @@
 
         <link rel='stylesheet' href='../../src/css/core.css'>
         <link rel='stylesheet' href='../../src/css/parallel-metrics.css'>
+        <link rel='stylesheet' href='../../src/css/topic-models.css'>
 
         <style>
             body {
                 width: 100%;
                 height: 100%;
                 display: grid;
-                grid-template-rows: 150px;
+                grid-template-rows: 150px 1fr;
                 gap: 5px;
                 padding: 3px;
             }
@@ -20,10 +21,15 @@
             .viseto-parallel-metrics {
                 grid-row: 1;
             }
+
+            .viseto-topic-models {
+                grid-row: 2;
+            }
         </style>
     </head>
     <body>
         <svg class='vis viseto-parallel-metrics'></svg>
+        <svg class='vis viseto-topic-models'></svg>
 
         <script src='../../src/lib/d3.min.js'></script>
         <script src='../../src/lib/lodash.min.js'></script>
@@ -31,6 +37,7 @@
 
         <script src='../../src/js/core.js'></script>
         <script src='../../src/js/parallel-metrics.js'></script>
+        <script src='../../src/js/topic-models.js'></script>
         <script src='index.js'></script>
     </body>
 </html>

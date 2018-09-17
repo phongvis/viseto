@@ -17,16 +17,16 @@ pv.vis.parallelMetrics = function() {
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
-        visTitle = 'Model Metrics',
+        visTitle = 'Parallel Metrics',
         modelTooltip = d => d.tooltip,
         maxBarHeight,
         ranked = true, // Show metrics as ranks instead of absolute values
         yAxisParams = ['jitter', 'beeswarm', 'alpha', 'beta', 'num_topics'],
         yAxisMapping = 'alpha',
         colorParams = ['none', 'mean rank', 'alpha', 'beta', 'num_topics'],
-        colorMapping = 'mean rank',
+        colorMapping = 'beta',
         shapeParams = ['none', 'alpha', 'beta', 'num_topics'],
-        shapeMapping = 'alpha',
+        shapeMapping = 'num_topics',
         modelParams = {
             'alpha': [0.01, 0.1, 1, 10],
             'beta': [0.01, 0.1, 1, 10],
@@ -59,8 +59,8 @@ pv.vis.parallelMetrics = function() {
     const listeners = d3.dispatch('click'),
         metricScale = d3.scaleBand().paddingInner(0.2),
         yScale = d3.scalePoint(),
-        colorScale = d3.scaleOrdinal().range(['#66c2a5','#fc8d62','#8da0cb','#e78ac3']),
-        shapeScale = d3.scaleOrdinal().range([d3.symbolCircle, d3.symbolCross, d3.symbolDiamond, d3.symbolSquare]),
+        colorScale = d3.scaleOrdinal().range(['#fdbe85','#fd8d3c','#e6550d','#a63603']),
+        shapeScale = d3.scaleOrdinal().range([d3.symbolTriangle, d3.symbolDiamond, d3.symbolStar, d3.symbolCircle]),
         greyScale = d3.interpolateGreys,
         rankScale = d3.scaleLinear();
 

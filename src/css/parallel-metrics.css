@@ -10,16 +10,16 @@
 }
 
 .pv-parallel-metrics .model.brushed {
-    stroke: black;
+    stroke: blue;
     opacity: 1;
 }
 
 .pv-parallel-metrics .model.hovered {
-    stroke: red;
+    stroke: cyan;
     opacity: 1;
 }
 
 .pv-parallel-metrics .brush .selection {
-    fill: orange;
+    fill: green;
     cursor: default;
 }

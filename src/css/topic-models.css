@@ -1,0 +1,9 @@
+.pv-topic-models .model path {
+    fill: hsl(0, 0%, 90%);
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-topic-models .model rect {
+    fill: hsl(0, 0%, 90%);
+    stroke: hsl(0, 0%, 60%);
+}

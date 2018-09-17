@@ -4,11 +4,16 @@ document.addEventListener('DOMContentLoaded', function() {
         pmVis = pv.vis.parallelMetrics();
     let pmData;
 
+    // Topic models
+    const tmContainer = d3.select('.viseto-topic-models'),
+        tmVis = pv.vis.topicModels();
+    let tmData;
+
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
 
     d3.json('../../data/lee-metrics.json').then(data => {
-        pmData = {
+        tmData = pmData = {
             metrics: [
                 { name: 'perplexity', label: 'perplexity' },
                 { name: 'u_mass', label: 'u_mass' },
@@ -34,6 +39,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function update() {
         redrawView(pmContainer, pmVis, pmData);
+        redrawView(tmContainer, tmVis, tmData);
     }
 
     function redrawView(container, vis, data) {
