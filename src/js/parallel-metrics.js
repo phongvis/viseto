@@ -23,7 +23,7 @@ pv.vis.parallelMetrics = function() {
         ranked = true, // Show metrics as ranks instead of absolute values
         yAxisParams = ['jitter', 'beeswarm', 'alpha', 'beta', 'num_topics'],
         yAxisMapping = 'alpha',
-        colorParams = ['none', 'mean rank', 'alpha', 'beta', 'num_topics'],
+        colorParams = ['none', 'mean rank', 'best rank', 'alpha', 'beta', 'num_topics'],
         colorMapping = 'beta',
         shapeParams = ['none', 'alpha', 'beta', 'num_topics'],
         shapeMapping = 'num_topics',
@@ -45,6 +45,7 @@ pv.vis.parallelMetrics = function() {
      */
     let modelData,
         metricData,
+        brushedIds,
         dataChanged = true; // True to redo all data-related computations
 
     /**
@@ -56,8 +57,8 @@ pv.vis.parallelMetrics = function() {
     /**
      * D3.
      */
-    const listeners = d3.dispatch('click'),
-        metricScale = d3.scaleBand().paddingInner(0.2),
+    const listeners = d3.dispatch('click', 'brush'),
+        metricScale = d3.scaleBand().paddingInner(0.15),
         yScale = d3.scalePoint(),
         colorScale = d3.scaleOrdinal().range(['#fdbe85','#fd8d3c','#e6550d','#a63603']),
         shapeScale = d3.scaleOrdinal().range([d3.symbolTriangle, d3.symbolDiamond, d3.symbolStar, d3.symbolCircle]),
@@ -116,21 +117,6 @@ pv.vis.parallelMetrics = function() {
                 metricData.forEach(t => {
                     jitterLookup[modelId(d) + '-' + metricId(t)] = Math.random();
                 });
-            });
-
-            // Rank the metric values
-            metricData.forEach(t => {
-                const metric = metricId(t),
-                    data = modelData.map(d => d[metric]),
-                    sortedData = data.slice().sort(d3.descending);
-                modelData.forEach(d => {
-                    d[metric + '-rank'] = sortedData.indexOf(d[metric]);
-                });
-            });
-
-            // Average rank
-            modelData.forEach(d => {
-                d.avgRank = Math.round(_.mean(_.filter(d, (v, k) => k.includes('-rank'))));
             });
         }
 
@@ -192,14 +178,19 @@ pv.vis.parallelMetrics = function() {
         }
 
         // x needs to satisfy all querying conditions (AND)
-        let brushedIds = [];
+        brushedIds = [];
+        metricContainer.selectAll('.model').classed('non-brushed', false);
         if (_.size(query)) {
             const isBrushed = x => d3.entries(query).every(q => x[q.key] >= q.value[0] && x[q.key] <= q.value[1]);
             brushedIds = modelData.filter(isBrushed).map(modelId);
+            metricContainer.selectAll('.model').classed('non-brushed', d2 => !brushedIds.includes(d2.id));
         }
 
         metricContainer.selectAll('.model').classed('brushed', d2 => brushedIds.includes(d2.id));
         metricContainer.selectAll('.model').filter(d2 => brushedIds.includes(d2.id)).raise();
+
+        // Broadcast
+        listeners.call('brush', module, brushedIds);
     }
 
     function getScale(d) {
@@ -234,7 +225,8 @@ pv.vis.parallelMetrics = function() {
                 metric: metricId(d),
                 value: x[metricId(d)],
                 rank: x[metricId(d) + '-rank'],
-                avgRank: x.avgRank,
+                meanRank: x.meanRank,
+                bestRank: x.bestRank,
                 alpha: x.alpha,
                 beta: x.beta,
                 num_topics: x.num_topics
@@ -282,8 +274,9 @@ pv.vis.parallelMetrics = function() {
     }
 
     function fillFunction(d) {
-        if (colorMapping === 'none') return 'grey';
-        if (colorMapping === 'mean rank') return greyScale(rankScale(d.avgRank));
+        if (colorMapping === 'none') return 'hsl(0, 0%, 70%)';
+        if (colorMapping === 'mean rank') return greyScale(rankScale(d.meanRank));
+        if (colorMapping === 'best rank') return greyScale(rankScale(d.bestRank));
 
         return colorScale(d[colorMapping]);
     }

@@ -68,6 +68,10 @@ text {
     fill-opacity: 0.2;
 }
 
+.brush .overlay {
+    cursor: default;
+}
+
 /* Axis */
 .tick line,
 .axis path,

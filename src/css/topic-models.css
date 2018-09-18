@@ -7,3 +7,22 @@
     fill: hsl(0, 0%, 90%);
     stroke: hsl(0, 0%, 60%);
 }
+
+.pv-topic-models .model.ext-brushed {
+    opacity: 0.2;
+}
+
+.pv-topic-models .label-button {
+    font-size: 12px;
+    fill: black;
+    text-anchor: end;
+    cursor: pointer;
+}
+
+.pv-topic-models .label-button.x {
+    dominant-baseline: text-after-edge;
+}
+
+.pv-topic-models .label-button.y {
+    dominant-baseline: text-before-edge;
+}
