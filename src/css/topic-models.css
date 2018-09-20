@@ -1,15 +1,17 @@
-.pv-topic-models .model path {
-    fill: hsl(0, 0%, 90%);
-    stroke: hsl(0, 0%, 60%);
-}
-
-.pv-topic-models .model rect {
-    fill: hsl(0, 0%, 90%);
-    stroke: hsl(0, 0%, 60%);
-}
-
-.pv-topic-models .model.ext-brushed {
+.pv-topic-models .model.non-ext-brushed,
+.pv-topic-models .model.non-brushed {
     opacity: 0.2;
+}
+
+.pv-topic-models .model.ext-brushed,
+.pv-topic-models .model.brushed {
+    stroke: blue;
+    opacity: 1;
+}
+
+.pv-topic-models .model.hovered {
+    stroke: blue !important;
+    stroke-width: 2px;
 }
 
 .pv-topic-models .label-button {

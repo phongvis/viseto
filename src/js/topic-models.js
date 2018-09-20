@@ -23,7 +23,7 @@ pv.vis.topicModels = function() {
         width, height, // Size of the main content, excluding margins
         visTitle = 'Model Metrics',
         sort = 'rank', // rank
-        layout = 'two', // one/two
+        layout = 'one', // one/two
         modelTooltip = d => d.tooltip,
         modelParams = {
             'alpha': [0.01, 0.1, 1, 10],
@@ -32,6 +32,8 @@ pv.vis.topicModels = function() {
         }, numLevels = 4,
         numParams = 3,
         paramList = ['alpha', 'beta', 'num_topics'],
+        colorParams = ['none', 'mean rank', 'best rank'],
+        color = 'best rank',
         axisMappings = ['dim 1', 'dim 2', 'mean rank', 'best rank'],
         mappingAccessors = [
             d => d.coords[0],
@@ -50,7 +52,6 @@ pv.vis.topicModels = function() {
      * Data binding to DOM elements.
      */
     let modelData,
-        metricData,
         dataChanged = true; // True to redo all data-related computations
 
     /**
@@ -58,6 +59,7 @@ pv.vis.topicModels = function() {
      */
     let visContainer, // Containing the entire visualization
         modelContainer,
+        brushContainer,
         xAxisContainer,
         yAxisContainer,
         xAxisLabel,
@@ -70,7 +72,10 @@ pv.vis.topicModels = function() {
         yScale = d3.scaleLinear(),
         xAxis = d3.axisBottom(xScale),
         yAxis = d3.axisLeft(yScale),
-        listeners = d3.dispatch('click');
+        colorScale = d3.interpolateGreys,
+        rankScale = d3.scaleLinear().range([0, 0.75]),
+        brush = d3.brush().on('brush', onBrushed).on('end', onBrushed),
+        listeners = d3.dispatch('click', 'hover', 'brush');
 
     /**
      * Main entry of the module.
@@ -81,6 +86,7 @@ pv.vis.topicModels = function() {
             if (!this.visInitialized) {
                 const container = d3.select(this).append('g').attr('class', 'pv-topic-models');
                 visContainer = container.append('g').attr('class', 'main-vis');
+                brushContainer = visContainer.append('g').attr('class', 'brush');
                 modelContainer = visContainer.append('g').attr('class', 'models');
 
                 modelData = _data.models;
@@ -118,6 +124,7 @@ pv.vis.topicModels = function() {
         if (dataChanged) {
             xScale.domain(d3.extent(modelData, mappingAccessors[xAxisMappingIdx])).nice();
             yScale.domain(d3.extent(modelData, mappingAccessors[yAxisMappingIdx])).nice();
+            rankScale.domain([modelData.length, 1]);
         }
 
         xAxisContainer.classed('hidden', layout === 'one').call(xAxis);
@@ -125,10 +132,20 @@ pv.vis.topicModels = function() {
         xAxisLabel.attr('transform', 'translate(' + width + ',-3)');
         yAxisLabel.attr('transform', 'translate(0,-3) rotate(-90)');
 
+        brush.extent([[0, 0], [width, height]]);
+        brushContainer.call(brush);
+
         // Updates that depend on both data and display change
         layoutModels();
 
         pv.enterUpdate(modelData, modelContainer, enterModels, updateModels, modelId, 'model');
+
+        modelContainer.selectAll('.model').sort(orderSort);
+    }
+
+    function orderSort(a, b) {
+        if (color === 'mean rank') return d3.descending(a.meanRank, b.meanRank) || d3.ascending(modelId(a), modelId(b));
+        if (color === 'best rank') return d3.descending(a.bestRank, b.bestRank) || d3.ascending(modelId(a), modelId(b));
     }
 
     function enterModels(selection) {
@@ -169,6 +186,19 @@ pv.vis.topicModels = function() {
         //             .attr('height', paramHeight);
         //     });
         // });
+
+        container.append('title')
+            .text(modelTooltip);
+
+        container.on('mouseover', function(d) {
+            modelContainer.selectAll('.model').classed('hovered', d2 => d2 === d);
+            modelContainer.selectAll('.model').filter(d2 => d2 === d).raise();
+            listeners.call('hover', module, modelId(d));
+        }).on('mouseout', function() {
+            modelContainer.selectAll('.model').classed('hovered', false);
+            listeners.call('hover', module, null);
+        }).on('click', function(d) {
+        });
     }
 
     function updateModels(selection) {
@@ -178,15 +208,26 @@ pv.vis.topicModels = function() {
             container.transition()
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
+
+            const c = findColor(d);
+            container.style('fill', c)
+                .style('stroke', d3.color(c).darker());
         });
+    }
+
+    function findColor(d) {
+        return c = {
+            'none': 'hsl(0, 0%, 90%)',
+            'mean rank': colorScale(rankScale(d.meanRank)),
+            'best rank': colorScale(rankScale(d.bestRank))
+        }[color];
     }
 
     function layoutModels() {
         if (layout === 'one') {
             const numItemsPerRow = Math.floor((width + itemGap) / (radius * 2 + itemGap));
-            const data = rankSort(modelData);
 
-            data.forEach((d, i) => {
+            modelData.forEach((d, i) => {
                 d.row = Math.floor(i / numItemsPerRow);
                 d.col = i % numItemsPerRow;
                 d.x = d.col * (radius * 2 + itemGap) + radius;
@@ -200,8 +241,26 @@ pv.vis.topicModels = function() {
         }
     }
 
-    function rankSort(data) {
-        return data.slice().sort((a, b) => d3.ascending(a.avgRank, b.avgRank));
+    function onBrushed() {
+        const s = d3.event.selection;
+        if (!s) {
+            modelContainer.selectAll('.model').each(function() {
+                d3.select(this).classed('non-brushed', false);
+                d3.select(this).classed('brushed', false);
+            });
+        } else {
+            const isBrushed = d => d.x >= s[0][0] && d.x <= s[1][0] && d.y >= s[0][1] && d.y <= s[1][1],
+                brushedIds = modelData.filter(isBrushed).map(modelId);
+
+            modelContainer.selectAll('.model').each(function(d) {
+                d3.select(this).classed('non-brushed', !brushedIds.includes(modelId(d)));
+                d3.select(this).classed('brushed', brushedIds.includes(modelId(d)));
+            });
+        }
+
+
+        // Broadcast
+        // listeners.call('brush', module, brushedIds);
     }
 
     function addAxes() {
@@ -242,6 +301,11 @@ pv.vis.topicModels = function() {
                     <input type='radio' value='two' name='layout'> 2d
                 </label>
             </div>
+            <div class='setting color'>
+                Color
+                <select>
+                </select>
+            </div>
             `
         );
 
@@ -250,6 +314,8 @@ pv.vis.topicModels = function() {
             layout = this.value;
             update();
         });
+
+        pv.addSelectOptions(container, '.color select', colorParams, color, value => { color = value; update(); });
     }
 
     /**
@@ -281,7 +347,18 @@ pv.vis.topicModels = function() {
      * Handles items that are brushed externally.
      */
     module.handleBrush = function(ids) {
-        modelContainer.selectAll('.model').classed('ext-brushed', d => ids.includes(modelId(d)));
+        modelContainer.selectAll('.model').classed('ext-brushed', d => ids.length && ids.includes(modelId(d)));
+        modelContainer.selectAll('.model').classed('non-ext-brushed', d => ids.length && !ids.includes(modelId(d)));
+    };
+
+    /**
+     * Handle an item that is hovered externally.
+     */
+    module.handleHover = function(id) {
+        modelContainer.selectAll('.model').classed('hovered', d => modelId(d) === id);
+        modelContainer.selectAll('.model').filter(d => modelId(d) === id).raise();
+
+        if (!id) modelContainer.selectAll('.model').sort(orderSort);
     };
 
     /**

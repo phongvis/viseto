@@ -2,12 +2,14 @@ document.addEventListener('DOMContentLoaded', function() {
     // Parallel metrics
     const pmContainer = d3.select('.viseto-parallel-metrics'),
         pmVis = pv.vis.parallelMetrics()
-            .on('brush', onBrushed);
+            .on('brush', onBrushed)
+            .on('hover', onHovered);
     let pmData;
 
     // Topic models
     const tmContainer = d3.select('.viseto-topic-models'),
-        tmVis = pv.vis.topicModels();
+        tmVis = pv.vis.topicModels()
+            .on('hover', onHovered);
     let tmData;
 
     // Linked views management
@@ -36,23 +38,31 @@ document.addEventListener('DOMContentLoaded', function() {
             models: data
         };
 
-        pmData.models.forEach(m => {
-            m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
-            m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}`;
-        });
-
         // Assign rank per metric for each data point
         pmData.metrics.forEach(t => {
             const sortedData = data.map(d => d[t.name]).sort(d3.descending);
             data.forEach(d => {
-                d[t.name + '-rank'] = sortedData.indexOf(d[t.name]);
+                d[t.name + '-rank'] = sortedData.indexOf(d[t.name]) + 1;
             });
         });
 
         // Average rank
         data.forEach(d => {
-            d.meanRank = _.mean(_.filter(d, (v, k) => k.includes('-rank'))).toFixed(1);
-            d.bestRank = _.min(_.filter(d, (v, k) => k.includes('-rank')));
+            const ranks = _.filter(d, (v, k) => k.includes('-rank'));
+            d.meanRank = _.mean(ranks).toFixed(1);
+            d.bestRank = _.min(ranks);
+            d.bestRankNames = [];
+            ranks.forEach((r, i) => {
+                if (r === d.bestRank) d.bestRankNames.push(pmData.metrics[i].label);
+            });
+            d.bestRankNames = d.bestRankNames.join(', ');
+        });
+
+        // ID, tooltip
+        pmData.models.forEach(m => {
+            m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
+            m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}
+mean rank: ${m.meanRank}\nbest rank: ${m.bestRank} (${m.bestRankNames})`;
         });
     }
 
@@ -76,6 +86,15 @@ document.addEventListener('DOMContentLoaded', function() {
     function onBrushed(ids) {
         views.filter(v => v !== this).forEach(v => {
             if (v.handleBrush) v.handleBrush(ids);
+        });
+    }
+
+    /**
+     * One view hovers, other views respond.
+     */
+    function onHovered(id) {
+        views.filter(v => v !== this).forEach(v => {
+            if (v.handleHover) v.handleHover(id);
         });
     }
 });

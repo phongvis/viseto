@@ -45,7 +45,6 @@ pv.vis.parallelMetrics = function() {
      */
     let modelData,
         metricData,
-        brushedIds,
         dataChanged = true; // True to redo all data-related computations
 
     /**
@@ -57,13 +56,13 @@ pv.vis.parallelMetrics = function() {
     /**
      * D3.
      */
-    const listeners = d3.dispatch('click', 'brush'),
-        metricScale = d3.scaleBand().paddingInner(0.15),
+    const metricScale = d3.scaleBand().paddingInner(0.15),
         yScale = d3.scalePoint(),
         colorScale = d3.scaleOrdinal().range(['#fdbe85','#fd8d3c','#e6550d','#a63603']),
         shapeScale = d3.scaleOrdinal().range([d3.symbolTriangle, d3.symbolDiamond, d3.symbolStar, d3.symbolCircle]),
         greyScale = d3.interpolateGreys,
-        rankScale = d3.scaleLinear();
+        rankScale = d3.scaleLinear(),
+        listeners = d3.dispatch('click', 'hover', 'brush');
 
     const jitterLookup = {}; // Random noise adding to models to avoid overplotting
     let query = {};
@@ -111,7 +110,7 @@ pv.vis.parallelMetrics = function() {
         // Updates that depend only on data change
         if (dataChanged) {
             metricScale.domain(d3.range(metricData.length));
-            rankScale.domain([modelData.length - 1, 0]);
+            rankScale.domain([modelData.length, 1]);
 
             modelData.forEach(d => {
                 metricData.forEach(t => {
@@ -178,7 +177,7 @@ pv.vis.parallelMetrics = function() {
         }
 
         // x needs to satisfy all querying conditions (AND)
-        brushedIds = [];
+        let brushedIds = [];
         metricContainer.selectAll('.model').classed('non-brushed', false);
         if (_.size(query)) {
             const isBrushed = x => d3.entries(query).every(q => x[q.key] >= q.value[0] && x[q.key] <= q.value[1]);
@@ -253,10 +252,11 @@ pv.vis.parallelMetrics = function() {
         container.on('mouseover', function(d, i) {
             metricContainer.selectAll('.model').classed('hovered', d2 => d2.id === d.id);
             metricContainer.selectAll('.model').filter(d2 => d2.id === d.id).raise();
+            listeners.call('hover', module, d.id);
         }).on('mouseout', function() {
             metricContainer.selectAll('.model').classed('hovered', false);
+            listeners.call('hover', module, null);
         }).on('click', function(d) {
-            listeners.call('click', this, modelData.find(t => modelId(t) === d.id));
         });
     }
 
@@ -357,25 +357,9 @@ pv.vis.parallelMetrics = function() {
         });
 
         // Y-axis, Color, Shape
-        addSelectOptions(container, '.y-axis select', yAxisParams, yAxisMapping, value => { yAxisMapping = value; });
-        addSelectOptions(container, '.color select', colorParams, colorMapping, value => { colorMapping = value; });
-        addSelectOptions(container, '.shape select', shapeParams, shapeMapping, value => { shapeMapping = value; });
-    }
-
-    /**
-     * Create and return a dropdown list with given options.
-     */
-    function addSelectOptions(container, css, values, defaultValue, callback) {
-        const select = container.select(css);
-        const options = select.selectAll('option').data(values);
-        options.enter().append('option')
-            .attr('value', String)
-            .text(String);
-        select.node().value = defaultValue;
-        select.on('change', function() {
-            callback(this.value);
-            update();
-        });
+        pv.addSelectOptions(container, '.y-axis select', yAxisParams, yAxisMapping, value => { yAxisMapping = value; update(); });
+        pv.addSelectOptions(container, '.color select', colorParams, colorMapping, value => { colorMapping = value; update(); });
+        pv.addSelectOptions(container, '.shape select', shapeParams, shapeMapping, value => { shapeMapping = value; update(); });
     }
 
     /**
@@ -401,6 +385,14 @@ pv.vis.parallelMetrics = function() {
      */
     module.invalidate = function() {
         dataChanged = true;
+    };
+
+    /**
+     * Handle an item that is hovered externally.
+     */
+    module.handleHover = function(id) {
+        metricContainer.selectAll('.model').classed('hovered', d => d.id === id);
+        metricContainer.selectAll('.model').filter(d => d.id === id).raise();
     };
 
     /**
