@@ -35,18 +35,22 @@ pv.vis.topicModels = function() {
         colorParams = ['none', 'mean rank', 'best rank'],
         color = 'best rank',
         axisMappings = ['dim 1', 'dim 2', 'mean rank', 'best rank'],
-        mappingAccessors = [
-            d => d.coords[0],
-            d => d.coords[1],
-            d => d.meanRank,
-            d => d.bestRank
-        ], xAxisMappingIdx = 0,
-        yAxisMappingIdx = 1;
+        xAxisMappingIdx = 0,
+        yAxisMappingIdx = 1,
+        brushing = false;
 
     /**
      * Accessors.
      */
-    let modelId = d => d.modelId;
+    let modelId = d => d.modelId,
+        meanRank = d => d.mean_rank,
+        bestRank = d => d.best_rank,
+        mappingAccessors = [
+            d => d.coords[0],
+            d => d.coords[1],
+            meanRank,
+            bestRank
+        ];
 
     /**
      * Data binding to DOM elements.
@@ -74,7 +78,7 @@ pv.vis.topicModels = function() {
         yAxis = d3.axisLeft(yScale),
         colorScale = d3.interpolateGreys,
         rankScale = d3.scaleLinear().range([0, 0.75]),
-        brush = d3.brush().on('brush', onBrushed).on('end', onBrushed),
+        brush = d3.brush().on('brush', onBrushed).on('end', onBrushended),
         listeners = d3.dispatch('click', 'hover', 'brush');
 
     /**
@@ -124,7 +128,7 @@ pv.vis.topicModels = function() {
         if (dataChanged) {
             xScale.domain(d3.extent(modelData, mappingAccessors[xAxisMappingIdx])).nice();
             yScale.domain(d3.extent(modelData, mappingAccessors[yAxisMappingIdx])).nice();
-            rankScale.domain([modelData.length, 1]);
+            rankScale.domain([1, modelData.length]);
         }
 
         xAxisContainer.classed('hidden', layout === 'one').call(xAxis);
@@ -144,8 +148,8 @@ pv.vis.topicModels = function() {
     }
 
     function orderSort(a, b) {
-        if (color === 'mean rank') return d3.descending(a.meanRank, b.meanRank) || d3.ascending(modelId(a), modelId(b));
-        if (color === 'best rank') return d3.descending(a.bestRank, b.bestRank) || d3.ascending(modelId(a), modelId(b));
+        if (color === 'mean rank') return d3.descending(meanRank(a), meanRank(b)) || d3.ascending(modelId(a), modelId(b));
+        if (color === 'best rank') return d3.descending(bestRank(a), bestRank(b)) || d3.ascending(modelId(a), modelId(b));
     }
 
     function enterModels(selection) {
@@ -191,6 +195,8 @@ pv.vis.topicModels = function() {
             .text(modelTooltip);
 
         container.on('mouseover', function(d) {
+            if (brushing) return;
+
             modelContainer.selectAll('.model').classed('hovered', d2 => d2 === d);
             modelContainer.selectAll('.model').filter(d2 => d2 === d).raise();
             listeners.call('hover', module, modelId(d));
@@ -218,8 +224,8 @@ pv.vis.topicModels = function() {
     function findColor(d) {
         return c = {
             'none': 'hsl(0, 0%, 90%)',
-            'mean rank': colorScale(rankScale(d.meanRank)),
-            'best rank': colorScale(rankScale(d.bestRank))
+            'mean rank': colorScale(rankScale(meanRank(d))),
+            'best rank': colorScale(rankScale(bestRank(d)))
         }[color];
     }
 
@@ -242,12 +248,18 @@ pv.vis.topicModels = function() {
     }
 
     function onBrushed() {
+        brushing = true;
+
         const s = d3.event.selection;
         if (!s) {
+            // Empty selection, turn back to no brushing mode
             modelContainer.selectAll('.model').each(function() {
                 d3.select(this).classed('non-brushed', false);
                 d3.select(this).classed('brushed', false);
             });
+
+            // Broadcast
+            listeners.call('brush', module, null);
         } else {
             const isBrushed = d => d.x >= s[0][0] && d.x <= s[1][0] && d.y >= s[0][1] && d.y <= s[1][1],
                 brushedIds = modelData.filter(isBrushed).map(modelId);
@@ -256,11 +268,16 @@ pv.vis.topicModels = function() {
                 d3.select(this).classed('non-brushed', !brushedIds.includes(modelId(d)));
                 d3.select(this).classed('brushed', brushedIds.includes(modelId(d)));
             });
+
+            // Broadcast
+            listeners.call('brush', module, brushedIds);
         }
+    }
 
+    function onBrushended() {
+        onBrushed.call(this);
 
-        // Broadcast
-        // listeners.call('brush', module, brushedIds);
+        brushing = false;
     }
 
     function addAxes() {
@@ -347,8 +364,8 @@ pv.vis.topicModels = function() {
      * Handles items that are brushed externally.
      */
     module.handleBrush = function(ids) {
-        modelContainer.selectAll('.model').classed('ext-brushed', d => ids.length && ids.includes(modelId(d)));
-        modelContainer.selectAll('.model').classed('non-ext-brushed', d => ids.length && !ids.includes(modelId(d)));
+        modelContainer.selectAll('.model').classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(modelId(d)));
+        modelContainer.selectAll('.model').classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(modelId(d)));
     };
 
     /**

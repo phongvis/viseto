@@ -8,11 +8,13 @@
     opacity: 1;
 }
 
-.pv-parallel-metrics .model.non-brushed {
-    opacity: 0.2;
+.pv-parallel-metrics .model.non-brushed,
+.pv-parallel-metrics .model.non-ext-brushed {
+    opacity: 0.25;
 }
 
-.pv-parallel-metrics .model.brushed {
+.pv-parallel-metrics .model.brushed,
+.pv-parallel-metrics .model.ext-brushed {
     stroke: blue;
     opacity: 1;
 }

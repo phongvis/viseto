@@ -13,12 +13,12 @@ pv.vis.parallelMetrics = function() {
      * Visual configs.
      */
     const margin = { top: 45, right: 10, bottom: 5, left: 10 },
-        shapeSize = Math.PI * 4 * 4;
+        radius = 4
+        shapeSize = Math.PI * radius * radius;
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
         visTitle = 'Parallel Metrics',
-        modelTooltip = d => d.tooltip,
         maxBarHeight,
         ranked = true, // Show metrics as ranks instead of absolute values
         yAxisParams = ['jitter', 'beeswarm', 'alpha', 'beta', 'num_topics'],
@@ -31,14 +31,17 @@ pv.vis.parallelMetrics = function() {
             'alpha': [0.01, 0.1, 1, 10],
             'beta': [0.01, 0.1, 1, 10],
             'num_topics': [5, 10, 15, 20]
-        };
+        }, brushing = false;
 
     /**
      * Accessors.
      */
     let modelId = d => d.modelId,
         metricId = d => d.name,
-        metricLabel = d => d.label;
+        metricLabel = d => d.label,
+        modelTooltip = d => d.tooltip,
+        meanRank = d => d.mean_rank,
+        bestRank = d => d.best_rank;
 
     /**
      * Data binding to DOM elements.
@@ -65,7 +68,6 @@ pv.vis.parallelMetrics = function() {
         listeners = d3.dispatch('click', 'hover', 'brush');
 
     const jitterLookup = {}; // Random noise adding to models to avoid overplotting
-    let query = {};
 
     /**
      * Main entry of the module.
@@ -110,7 +112,7 @@ pv.vis.parallelMetrics = function() {
         // Updates that depend only on data change
         if (dataChanged) {
             metricScale.domain(d3.range(metricData.length));
-            rankScale.domain([modelData.length, 1]);
+            rankScale.domain([1, modelData.length]);
 
             modelData.forEach(d => {
                 metricData.forEach(t => {
@@ -149,51 +151,57 @@ pv.vis.parallelMetrics = function() {
             .text(metricLabel);
 
         // Axis and brush
-        selection.each(function(d) {
+        selection.each(function(d, i) {
             d.scale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d)])));
             d.rankScale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d) + '-rank'])));
-            d.brush = d3.brushX().on('brush', onBrushed).on('end', onBrushed);
+            d.brush = d3.brush().on('brush', onBrushed).on('end', onBrushended);
             d3.select(this).append('g').attr('class', 'axis x-axis')
                 .attr('transform', 'translate(0, 5)');
             d3.select(this).append('g').attr('class', 'brush');
         });
     }
 
-    function onBrushed(d) {
-        const metric = metricId(d) + (ranked ? '-rank' : '');
-        if (d3.event.selection) {
-            // If holding SHIFT, add the metric to the query. Otherwise, set the metric to the only one.
-            if (!d3.event.sourceEvent.shiftKey) {
-                query = {};
+    function onBrushed() {
+        brushing = true;
 
-                // Also clear other metric brushes.
-                metricContainer.selectAll('.brush').filter(d2 => d2 !== d).each(function(d2) {
-                    d2.brush.move(d3.select(this), null);
-                });
-            }
-            query[metric] = d3.event.selection.map(getScale(d).invert);
+        const s = d3.event.selection;
+        if (!s) {
+
+            // Empty selection, turn back to no brushing mode
+            metricContainer.selectAll('.model').each(function() {
+                d3.select(this).classed('non-brushed', false);
+                d3.select(this).classed('brushed', false);
+            });
+
+            // Broadcast
+            listeners.call('brush', module, null);
         } else {
-            delete query[metric];
+            const isBrushed = d => d.x >= s[0][0] && d.x <= s[1][0] && d.y >= s[0][1] && d.y <= s[1][1],
+                brushedIds = [];
+
+            // Find the brushed elements using the brushing metric, then brush the same ids from other metrics
+            d3.select(this.parentNode).selectAll('.model').each(function(d) {
+                if (isBrushed(d)) brushedIds.push(d.id);
+            });
+
+            metricContainer.selectAll('.model').each(function(d) {
+                d3.select(this).classed('non-brushed', !brushedIds.includes(d.id));
+                d3.select(this).classed('brushed', brushedIds.includes(d.id));
+            });
+
+            // Broadcast
+            listeners.call('brush', module, brushedIds);
         }
-
-        // x needs to satisfy all querying conditions (AND)
-        let brushedIds = [];
-        metricContainer.selectAll('.model').classed('non-brushed', false);
-        if (_.size(query)) {
-            const isBrushed = x => d3.entries(query).every(q => x[q.key] >= q.value[0] && x[q.key] <= q.value[1]);
-            brushedIds = modelData.filter(isBrushed).map(modelId);
-            metricContainer.selectAll('.model').classed('non-brushed', d2 => !brushedIds.includes(d2.id));
-        }
-
-        metricContainer.selectAll('.model').classed('brushed', d2 => brushedIds.includes(d2.id));
-        metricContainer.selectAll('.model').filter(d2 => brushedIds.includes(d2.id)).raise();
-
-        // Broadcast
-        listeners.call('brush', module, brushedIds);
     }
 
     function getScale(d) {
         return ranked ? d.rankScale : d.scale;
+    }
+
+    function onBrushended() {
+        onBrushed.call(this);
+
+        brushing = false;
     }
 
     function updateMetrics(selection) {
@@ -214,7 +222,7 @@ pv.vis.parallelMetrics = function() {
             container.select('.axis').call(d3.axisBottom(getScale(d)).ticks(5));
 
             // Brush
-            d.brush.extent([[0, -maxBarHeight - 4], [metricScale.bandwidth(), 3]]);
+            d.brush.extent([[-radius, -maxBarHeight - radius * 2], [metricScale.bandwidth() + radius, radius]]);
             container.select('.brush').call(d.brush);
 
             // Model dots
@@ -224,8 +232,8 @@ pv.vis.parallelMetrics = function() {
                 metric: metricId(d),
                 value: x[metricId(d)],
                 rank: x[metricId(d) + '-rank'],
-                meanRank: x.meanRank,
-                bestRank: x.bestRank,
+                meanRank: meanRank(x),
+                bestRank: bestRank(x),
                 alpha: x.alpha,
                 beta: x.beta,
                 num_topics: x.num_topics
@@ -250,6 +258,8 @@ pv.vis.parallelMetrics = function() {
             .text(modelTooltip);
 
         container.on('mouseover', function(d, i) {
+            if (brushing) return;
+
             metricContainer.selectAll('.model').classed('hovered', d2 => d2.id === d.id);
             metricContainer.selectAll('.model').filter(d2 => d2.id === d.id).raise();
             listeners.call('hover', module, d.id);
@@ -385,6 +395,14 @@ pv.vis.parallelMetrics = function() {
      */
     module.invalidate = function() {
         dataChanged = true;
+    };
+
+    /**
+     * Handles items that are brushed externally.
+     */
+    module.handleBrush = function(ids) {
+        metricContainer.selectAll('.model').classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(d.id));
+        metricContainer.selectAll('.model').classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(d.id));
     };
 
     /**

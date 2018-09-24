@@ -1,6 +1,6 @@
 .pv-topic-models .model.non-ext-brushed,
 .pv-topic-models .model.non-brushed {
-    opacity: 0.2;
+    opacity: 0.25;
 }
 
 .pv-topic-models .model.ext-brushed,
@@ -27,4 +27,9 @@
 
 .pv-topic-models .label-button.y {
     dominant-baseline: text-before-edge;
+}
+
+.pv-topic-models .brush .selection {
+    fill: green;
+    cursor: default;
 }

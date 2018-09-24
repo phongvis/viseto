@@ -9,6 +9,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Topic models
     const tmContainer = d3.select('.viseto-topic-models'),
         tmVis = pv.vis.topicModels()
+            .on('brush', onBrushed)
             .on('hover', onHovered);
     let tmData;
 
@@ -18,7 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
 
-    d3.json('../../data/lee-metrics.json').then(data => {
+    d3.json('../../data/lee-analysis-metrics.json').then(data => {
         processData(data);
 
         // Build the vises
@@ -35,34 +36,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 { name: 'c_npmi', label: 'c_npmi' },
                 { name: 'c_w2v', label: 'c_w2v' }
             ],
-            models: data
+            models: data.metrics
         };
-
-        // Assign rank per metric for each data point
-        pmData.metrics.forEach(t => {
-            const sortedData = data.map(d => d[t.name]).sort(d3.descending);
-            data.forEach(d => {
-                d[t.name + '-rank'] = sortedData.indexOf(d[t.name]) + 1;
-            });
-        });
-
-        // Average rank
-        data.forEach(d => {
-            const ranks = _.filter(d, (v, k) => k.includes('-rank'));
-            d.meanRank = _.mean(ranks).toFixed(1);
-            d.bestRank = _.min(ranks);
-            d.bestRankNames = [];
-            ranks.forEach((r, i) => {
-                if (r === d.bestRank) d.bestRankNames.push(pmData.metrics[i].label);
-            });
-            d.bestRankNames = d.bestRankNames.join(', ');
-        });
 
         // ID, tooltip
         pmData.models.forEach(m => {
             m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
-            m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}
-mean rank: ${m.meanRank}\nbest rank: ${m.bestRank} (${m.bestRankNames})`;
+            m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}\nmean rank: ${m.mean_rank.toFixed(1)}\nbest rank: ${m.best_rank}`;
         });
     }
 
