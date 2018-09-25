@@ -1,0 +1,36 @@
+.pv-subgroups .metric .label {
+    fill: black;
+    text-anchor: middle;
+    dominant-baseline: text-before-edge;
+}
+
+.pv-subgroups .item {
+    fill: hsl(0, 0%, 90%);
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-subgroups .item .no-fill {
+    fill-opacity: 1e-6;
+    stroke-dasharray: 3,2;
+}
+
+.pv-subgroups .item .even {
+    fill: none;
+    stroke: none;
+    pointer-events: none;
+}
+
+.pv-subgroups .item .odd {
+    fill: hsl(0, 0%, 95%);
+    stroke: none;
+    pointer-events: none;
+}
+
+.pv-subgroups .item.hovered {
+    stroke: blue !important;
+    stroke-width: 2px;
+}
+
+.pv-subgroups .item.hovered .background {
+    stroke: none;
+}

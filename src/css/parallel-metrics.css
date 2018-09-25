@@ -4,10 +4,6 @@
     dominant-baseline: text-before-edge;
 }
 
-.pv-parallel-metrics .model {
-    opacity: 1;
-}
-
 .pv-parallel-metrics .model.non-brushed,
 .pv-parallel-metrics .model.non-ext-brushed {
     opacity: 0.25;

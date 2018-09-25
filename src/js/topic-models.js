@@ -29,9 +29,9 @@ pv.vis.topicModels = function() {
             'alpha': [0.01, 0.1, 1, 10],
             'beta': [0.01, 0.1, 1, 10],
             'num_topics': [5, 10, 15, 20]
-        }, numLevels = 4,
-        numParams = 3,
-        paramList = ['alpha', 'beta', 'num_topics'],
+        }, paramList = ['alpha', 'beta', 'num_topics'],
+        numLevels = modelParams['alpha'].length,
+        numParams = paramList.length,
         colorParams = ['none', 'mean rank', 'best rank'],
         color = 'best rank',
         axisMappings = ['dim 1', 'dim 2', 'mean rank', 'best rank'],
@@ -158,8 +158,8 @@ pv.vis.topicModels = function() {
             .attr('opacity', 1);
 
         // Pie, one for each param
-        const levelRadius = radius / numLevels;
-        const paramAngle = Math.PI * 2 / numParams;
+        const levelRadius = radius / numLevels,
+            paramAngle = Math.PI * 2 / numParams;
         container.each(function(d) {
             _.times(numParams, i => {
                 const p = paramList[i],
