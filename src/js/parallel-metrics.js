@@ -166,7 +166,6 @@ pv.vis.parallelMetrics = function() {
 
         const s = d3.event.selection;
         if (!s) {
-
             // Empty selection, turn back to no brushing mode
             metricContainer.selectAll('.model').each(function() {
                 d3.select(this).classed('non-brushed', false);
@@ -200,7 +199,6 @@ pv.vis.parallelMetrics = function() {
 
     function onBrushended() {
         onBrushed.call(this);
-
         brushing = false;
     }
 
