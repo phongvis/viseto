@@ -1,11 +1,10 @@
 .pv-topic-models .model.non-ext-brushed,
 .pv-topic-models .model.non-brushed {
-    opacity: 0.25;
+    opacity: 0.3;
 }
 
 .pv-topic-models .model.ext-brushed,
 .pv-topic-models .model.brushed {
-    stroke: blue;
     opacity: 1;
 }
 

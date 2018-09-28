@@ -399,16 +399,18 @@ pv.vis.parallelMetrics = function() {
      * Handles items that are brushed externally.
      */
     module.handleBrush = function(ids) {
-        metricContainer.selectAll('.model').classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(d.id));
-        metricContainer.selectAll('.model').classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(d.id));
+        metricContainer.selectAll('.model')
+            .classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(d.id))
+            .classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(d.id));
     };
 
     /**
      * Handle an item that is hovered externally.
      */
     module.handleHover = function(id) {
-        metricContainer.selectAll('.model').classed('hovered', d => d.id === id);
-        metricContainer.selectAll('.model').filter(d => d.id === id).raise();
+        metricContainer.selectAll('.model')
+            .classed('hovered', d => d.id === id)
+            .filter(d => d.id === id).raise();
     };
 
     /**

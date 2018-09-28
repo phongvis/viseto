@@ -364,16 +364,18 @@ pv.vis.topicModels = function() {
      * Handles items that are brushed externally.
      */
     module.handleBrush = function(ids) {
-        modelContainer.selectAll('.model').classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(modelId(d)));
-        modelContainer.selectAll('.model').classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(modelId(d)));
+        modelContainer.selectAll('.model')
+            .classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(modelId(d)))
+            .classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(modelId(d)));
     };
 
     /**
      * Handle an item that is hovered externally.
      */
     module.handleHover = function(id) {
-        modelContainer.selectAll('.model').classed('hovered', d => modelId(d) === id);
-        modelContainer.selectAll('.model').filter(d => modelId(d) === id).raise();
+        modelContainer.selectAll('.model')
+            .classed('hovered', d => modelId(d) === id)
+            .filter(d => modelId(d) === id).raise();
 
         if (!id) modelContainer.selectAll('.model').sort(orderSort);
     };

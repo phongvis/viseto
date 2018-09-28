@@ -5,8 +5,8 @@
 }
 
 .pv-subgroups .item {
-    fill: hsl(0, 0%, 90%);
-    stroke: hsl(0, 0%, 60%);
+    fill: hsl(0, 0%, 80%);
+    stroke: hsl(0, 0%, 50%);
 }
 
 .pv-subgroups .item .no-fill {
@@ -14,19 +14,43 @@
     stroke-dasharray: 3,2;
 }
 
-.pv-subgroups .item .even {
+.pv-subgroups .background.even {
     fill: none;
     stroke: none;
-    pointer-events: none;
 }
 
-.pv-subgroups .item .odd {
+.pv-subgroups .background.odd {
     fill: hsl(0, 0%, 95%);
     stroke: none;
-    pointer-events: none;
 }
 
-.pv-subgroups .item.hovered {
+.pv-subgroups .item .rank {
+    fill: hsl(0, 0%, 70%);
+    stroke: none;;
+}
+
+.pv-subgroups .item .rank.base {
+    fill: none;
+    stroke: hsl(0, 0%, 50%);
+}
+
+.pv-subgroups .brush .selection {
+    fill: green;
+    cursor: default;
+}
+
+.pv-subgroups .item.non-ext-brushed,
+.pv-subgroups .item.non-brushed {
+    opacity: 0.3;
+}
+
+.pv-subgroups .item.ext-brushed,
+.pv-subgroups .item.brushed {
+    opacity: 1;
+}
+
+.pv-subgroups .item.hovered,
+.pv-subgroups .item.hovered .rank.base {
     stroke: blue !important;
     stroke-width: 2px;
 }
@@ -34,3 +58,4 @@
 .pv-subgroups .item.hovered .background {
     stroke: none;
 }
+
