@@ -1,0 +1,16 @@
+.pv-model-collection .setting {
+    margin-top: 0;
+    margin-left: 5px;
+}
+
+.pv-model-collection .setting.file-container {
+    background-color: white;
+    margin: 0px 0px 1px 5px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    border: 1px solid #bbb;
+}
+
+.pv-model-collection .setting.file-container input {
+    display: none;
+}

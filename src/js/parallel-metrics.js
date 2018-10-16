@@ -154,11 +154,14 @@ pv.vis.parallelMetrics = function() {
         selection.each(function(d, i) {
             d.scale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d)])));
             d.rankScale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d) + '-rank'])));
-            d.brush = d3.brush().on('brush', onBrushed).on('end', onBrushended);
+            d.brush = d3.brush().on('start', onBrushstarted).on('brush', onBrushed).on('end', onBrushended);
             d3.select(this).append('g').attr('class', 'axis x-axis')
                 .attr('transform', 'translate(0, 5)');
             d3.select(this).append('g').attr('class', 'brush');
         });
+    }
+
+    function onBrushstarted(d) {
     }
 
     function onBrushed() {

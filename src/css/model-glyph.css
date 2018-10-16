@@ -1,0 +1,9 @@
+.pv-model-glyph {
+    fill: hsl(0, 0%, 80%);
+    stroke: hsl(0, 0%, 50%);
+}
+
+.pv-model-glyph.no-fill {
+    fill-opacity: 1e-6;
+    stroke-dasharray: 3,2;
+}

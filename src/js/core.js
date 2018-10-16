@@ -39,7 +39,21 @@ window.pv = function() {
         select.on('change', function() {
             callback(this.value);
         });
-    };
+	};
+
+	/**
+	 * Read a file.
+	 */
+	pv.readFile = function(e, callback) {
+		const f = e.target.files[0];
+		if (f) {
+			const reader = new FileReader();
+			reader.readAsText(f);
+			reader.onload = function(e) {
+				callback(e.target.result);
+			};
+		}
+	};
 
     return pv;
 }();

@@ -1,4 +1,14 @@
 document.addEventListener('DOMContentLoaded', function() {
+    const modelLookup = {};
+
+    // Model collection
+    const mcContainer = d3.select('.viseto-model-collection'),
+        mcVis = pv.vis.modelCollection()
+            .modelLookup(modelLookup);
+            // .on('brush', onBrushed)
+            // .on('hover', onHovered);
+    let mcData;
+
     // Parallel metrics
     const pmContainer = d3.select('.viseto-parallel-metrics'),
         pmVis = pv.vis.parallelMetrics()
@@ -52,7 +62,10 @@ document.addEventListener('DOMContentLoaded', function() {
         pmData.models.forEach(m => {
             m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
             m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}\nmean rank: ${m.mean_rank.toFixed(1)}\nbest rank: ${m.best_rank}`;
+            modelLookup[m.modelId] = m;
         });
+
+        mcData = pmData.models.slice(15, 30).map(d => d.modelId);
 
         const extraMetrics = [
             { name: 'mean_rank', label: 'mean rank' },
@@ -69,6 +82,7 @@ document.addEventListener('DOMContentLoaded', function() {
      * Updates vises when window changed.
      */
     function update() {
+        redrawView(mcContainer, mcVis, mcData);
         redrawView(pmContainer, pmVis, pmData);
         redrawView(tmContainer, tmVis, tmData);
         redrawView(sgContainer, sgVis, sgData);
@@ -87,6 +101,8 @@ document.addEventListener('DOMContentLoaded', function() {
         views.filter(v => v !== this).forEach(v => {
             if (v.handleBrush) v.handleBrush(ids);
         });
+
+        mcVis.setBrushed(ids);
     }
 
     /**
