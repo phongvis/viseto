@@ -1,0 +1,24 @@
+.pv-topics .topic-words {
+    display: flex;
+    overflow: hidden;
+}
+
+.pv-topics .topic-words .term {
+    border-radius: 3px;
+    margin: 1px;
+    padding: 2px 3px;
+}
+
+.pv-topics .count .background {
+    fill: none;
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-topics .count .foreground {
+    fill: hsl(0, 0%, 80%);
+}
+
+.pv-topics .pair path {
+    fill: hsl(0, 0%, 60%);
+    fill-opacity: 0.4;
+}

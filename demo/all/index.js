@@ -1,13 +1,13 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const modelLookup = {};
+document.addEventListener('DOMContentLoaded', async function() {
+    const metricLookup = {}; // model -> metrics
+    const infoLookup = {}; // model -> info
 
     // Model collection
     const mcContainer = d3.select('.viseto-model-collection'),
         mcVis = pv.vis.modelCollection()
-            .modelLookup(modelLookup);
+            .modelLookup(metricLookup);
             // .on('brush', onBrushed)
             // .on('hover', onHovered);
-    let mcData;
 
     // Parallel metrics
     const pmContainer = d3.select('.viseto-parallel-metrics'),
@@ -20,7 +20,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const tmContainer = d3.select('.viseto-topic-models'),
         tmVis = pv.vis.topicModels()
             .on('brush', onBrushed)
-            .on('hover', onHovered);
+            .on('hover', onHovered)
+            .on('click', onClicked);
     let tmData;
 
     // Subgroups
@@ -30,20 +31,25 @@ document.addEventListener('DOMContentLoaded', function() {
             .on('hover', onHovered);
     let sgData;
 
+    // Model topics
+    const mtContainer = d3.select('.viseto-topics'),
+        mtVis = pv.vis.topics();
+    let mtData;
+
     // Linked views management
     const views = [pmVis, tmVis, sgVis];
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
 
-    d3.json('../../data/lee-analysis-metrics.json').then(data => {
-        processData(data);
+    // Load data
+    processAnalysisMetrics(await d3.json('../../data/lee-analysis-metrics.json'));
+    processTopics(await d3.json('../../data/lee-topics.json'));
 
-        // Build the vises
-        update();
-    });
+    // Build the vises
+    update();
 
-    function processData(data) {
+    function processAnalysisMetrics(data) {
         const metrics = [
             { name: 'perplexity', label: 'perplexity' },
             { name: 'u_mass', label: 'u_mass' },
@@ -60,12 +66,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // ID, tooltip
         pmData.models.forEach(m => {
-            m.modelId = m.alpha + '-' + m.beta + '-' + m.num_topics;
             m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}\nmean rank: ${m.mean_rank.toFixed(1)}\nbest rank: ${m.best_rank}`;
-            modelLookup[m.modelId] = m;
+            metricLookup[m.modelId] = m;
         });
-
-        mcData = pmData.models.slice(15, 30).map(d => d.modelId);
 
         const extraMetrics = [
             { name: 'mean_rank', label: 'mean rank' },
@@ -78,19 +81,30 @@ document.addEventListener('DOMContentLoaded', function() {
         };
     }
 
+    function processTopics(data) {
+        data.forEach(m => {
+            infoLookup[m.modelId] = m;
+        });
+
+        // Test by intially showing the first model
+        mtData = data[0];
+    }
+
     /**
      * Updates vises when window changed.
      */
     function update() {
-        redrawView(mcContainer, mcVis, mcData);
+        redrawView(mcContainer, mcVis);
         redrawView(pmContainer, pmVis, pmData);
         redrawView(tmContainer, tmVis, tmData);
         redrawView(sgContainer, sgVis, sgData);
+        redrawView(mtContainer, mtVis, mtData);
     }
 
-    function redrawView(container, vis, data) {
+    function redrawView(container, vis, data, invalidated) {
         const rect = pv.getContentRect(container.node());
         vis.width(rect[0]).height(rect[1]);
+        if (invalidated) vis.invalidate();
         container.datum(data).call(vis);
     }
 
@@ -112,5 +126,14 @@ document.addEventListener('DOMContentLoaded', function() {
         views.filter(v => v !== this).forEach(v => {
             if (v.handleHover) v.handleHover(id);
         });
+    }
+
+    /**
+     * One view clicks, other views respond.
+     */
+    function onClicked(id) {
+        // Only the model topics view needs to respond: show topics of that model
+        mtData = infoLookup[id];
+        redrawView(mtContainer, mtVis, mtData, true);
     }
 });

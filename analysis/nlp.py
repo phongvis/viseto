@@ -91,10 +91,17 @@ def get_strongest_term_topics(lda, vocab):
 
     return [lookup[t] for t in vocab]
 
-def get_topics(lda, topn=5):
+def get_topics(lda, topn=10):
     'Return top terms for each topic in the model.'
     def get_one(id):
         return [lda.id2word[t] for t, p in lda.get_topic_terms(id, topn=topn)]
+
+    return [get_one(i) for i in range(lda.num_topics)]
+
+def get_topic_terms(lda, topn=10):
+    'Return top terms with their probabilities for each topic in the model.'
+    def get_one(id):
+        return [(lda.id2word[t], p) for t, p in lda.get_topic_terms(id, topn=topn)]
 
     return [get_one(i) for i in range(lda.num_topics)]
 

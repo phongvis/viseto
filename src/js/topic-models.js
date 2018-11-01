@@ -204,6 +204,7 @@ pv.vis.topicModels = function() {
             modelContainer.selectAll('.model').classed('hovered', false);
             listeners.call('hover', module, null);
         }).on('click', function(d) {
+            listeners.call('click', module, modelId(d));
         });
     }
 

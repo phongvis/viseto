@@ -1,6 +1,8 @@
 /**
  * Management of selected models.
  * Data input:
+ *  - a dictionary of models
+ *  - data set through brushedModels as ids that can be retrieved from the dictionary
  */
 pv.vis.modelCollection = function() {
     /**
@@ -28,7 +30,7 @@ pv.vis.modelCollection = function() {
     /**
      * Data binding to DOM elements.
      */
-    let modelData,
+    let modelData = [],
         dataChanged = true; // True to redo all data-related computations
 
     /**
@@ -47,14 +49,12 @@ pv.vis.modelCollection = function() {
      * Main entry of the module.
      */
     function module(selection) {
-        selection.each(function(_data) {
+        selection.each(function() {
             // Initialize
             if (!this.visInitialized) {
                 const container = d3.select(this).append('g').attr('class', 'pv-model-collection');
                 visContainer = container.append('g').attr('class', 'main-vis');
                 brushContainer = visContainer.append('g').attr('class', 'brush');
-
-                modelData = _data.map(id => modelLookup[id]);
 
                 addSettings(container);
 
