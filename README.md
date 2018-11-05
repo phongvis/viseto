@@ -1,2 +1,4 @@
 # viseto
-A framework for evaluating topic models using visualisation.
+A framework for building topic models using visualisation.
+
+[Demo](https://phongvis.github.io/viseto/demo/all/)
