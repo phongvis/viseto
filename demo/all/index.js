@@ -31,13 +31,18 @@ document.addEventListener('DOMContentLoaded', async function() {
             .on('hover', onHovered);
     let sgData;
 
+    // Model tree
+    const mtContainer = d3.select('.viseto-model-tree'),
+        mtVis = pv.vis.modelTree();
+    let topicData, mtData;
+
     // Model topics
-    const mtContainer = d3.select('.viseto-topics'),
-        mtVis = pv.vis.topics();
-    let mtData;
+    const tContainer = d3.select('.viseto-topics'),
+        tVis = pv.vis.topics();
+    let tData;
 
     // Linked views management
-    const views = [pmVis, tmVis, sgVis];
+    const views = [pmVis, tmVis, sgVis, mtVis];
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
@@ -87,7 +92,11 @@ document.addEventListener('DOMContentLoaded', async function() {
         });
 
         // Test by intially showing the first model
-        mtData = data[0];
+        tData = _.clone(data[0], true);
+
+        // Test by initially showing first only models with 5 topics
+        topicData = data;
+        mtData = data.filter(m => m.topics.length === 5);
     }
 
     /**
@@ -99,6 +108,7 @@ document.addEventListener('DOMContentLoaded', async function() {
         redrawView(tmContainer, tmVis, tmData);
         redrawView(sgContainer, sgVis, sgData);
         redrawView(mtContainer, mtVis, mtData);
+        redrawView(tContainer, tVis, tData);
     }
 
     function redrawView(container, vis, data, invalidated) {
@@ -114,6 +124,10 @@ document.addEventListener('DOMContentLoaded', async function() {
     function onBrushed(ids) {
         views.filter(v => v !== this).forEach(v => {
             if (v.handleBrush) v.handleBrush(ids);
+            if (v === mtVis) {
+                mtData = ids.map(id => _.clone(infoLookup[id], true));
+                redrawView(mtContainer, mtVis, mtData, true);
+            }
         });
 
         mcVis.setBrushed(ids);
@@ -133,7 +147,7 @@ document.addEventListener('DOMContentLoaded', async function() {
      */
     function onClicked(id) {
         // Only the model topics view needs to respond: show topics of that model
-        mtData = infoLookup[id];
-        redrawView(mtContainer, mtVis, mtData, true);
+        tData = _.clone(infoLookup[id], true);
+        redrawView(tContainer, tVis, tData, true);
     }
 });

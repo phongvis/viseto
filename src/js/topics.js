@@ -52,7 +52,7 @@ pv.vis.topics = function() {
         arcScale = d3.scaleLinear().range([0, maxBarHeight * arcHeightRatio]),
         colorScale = x => {
             const c = d3.rgb(termColor(x));
-            c.opacity = 0.5;
+            // c.opacity = 0.5;
             return c;
         }, listeners = d3.dispatch('click');
 

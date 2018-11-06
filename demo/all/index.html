@@ -10,6 +10,7 @@
         <link rel='stylesheet' href='../../src/css/parallel-metrics.css'>
         <link rel='stylesheet' href='../../src/css/topic-models.css'>
         <link rel='stylesheet' href='../../src/css/subgroups.css'>
+        <link rel='stylesheet' href='../../src/css/model-tree.css'>
         <link rel='stylesheet' href='../../src/css/topics.css'>
 
         <style>
@@ -18,19 +19,19 @@
                 height: 100%;
                 display: grid;
                 grid-template-rows: 65px 150px 1fr;
-                grid-template-columns: 1fr 1fr 1fr;
+                grid-template-columns: 1fr 1fr 2fr 1fr;
                 gap: 3px;
                 padding: 3px;
             }
 
             .viseto-model-collection {
                 grid-row: 1;
-                grid-column: 1/4;
+                grid-column: 1/5;
             }
 
             .viseto-parallel-metrics {
                 grid-row: 2;
-                grid-column: 1/4;
+                grid-column: 1/5;
             }
 
             .viseto-topic-models {
@@ -43,9 +44,14 @@
                 grid-column: 2;
             }
 
-            .viseto-topics {
+            .viseto-model-tree {
                 grid-row: 3;
                 grid-column: 3;
+            }
+
+            .viseto-topics {
+                grid-row: 3;
+                grid-column: 4;
             }
         </style>
     </head>
@@ -54,6 +60,7 @@
         <svg class='vis viseto-parallel-metrics'></svg>
         <svg class='vis viseto-topic-models'></svg>
         <svg class='vis viseto-subgroups'></svg>
+        <svg class='vis viseto-model-tree'></svg>
         <svg class='vis viseto-topics'></svg>
 
         <script src='../../src/lib/d3.min.js'></script>
@@ -67,6 +74,7 @@
         <script src='../../src/js/parallel-metrics.js'></script>
         <script src='../../src/js/topic-models.js'></script>
         <script src='../../src/js/subgroups.js'></script>
+        <script src='../../src/js/model-tree.js'></script>
         <script src='../../src/js/topics.js'></script>
         <script src='index.js'></script>
     </body>

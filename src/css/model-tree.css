@@ -1,0 +1,15 @@
+.pv-model-tree .topic rect.container {
+    stroke: hsl(0, 0%, 60%);
+    fill: none;
+    pointer-events: none;
+}
+
+.pv-model-tree .bar rect,
+.pv-model-tree .line line {
+    stroke: hsl(0, 0%, 60%);
+}
+
+.pv-model-tree .bar rect:hover,
+.pv-model-tree .bar.hovered rect {
+    stroke: hsl(0, 0%, 0%);
+}

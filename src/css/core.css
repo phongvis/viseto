@@ -28,7 +28,6 @@ text {
     height: 100%;
     background-color: white;
     border: 1px solid hsl(0, 0%, 80%);
-    box-shadow: 0 0 1px hsl(0, 0%, 80%);
 }
 
 .vis-header {
