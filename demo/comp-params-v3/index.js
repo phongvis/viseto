@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
-    const vis = pv.vis.compParams()
+    const vis = pv.vis
+        .compParams()
         .values(d => d.topic_terms)
         .groupBy1(d => d.beta)
         .groupBy2(d => d.alpha);
@@ -28,8 +29,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function update() {
         // Update size of the vis
-        vis.width(window.innerWidth)
-            .height(window.innerHeight);
+        vis.width(window.innerWidth).height(window.innerHeight);
 
         // Update size of the vis container and redraw
         d3.select('.pv-vis-demo')

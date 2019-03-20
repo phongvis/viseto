@@ -1,6 +1,7 @@
 document.addEventListener('DOMContentLoaded', function() {
     // Instantiate vis and its parameters
-    const vis = pv.vis.compParams()
+    const vis = pv.vis
+        .compParams()
         .label(d => d.alpha)
         .values(d => d.doc_topics);
 
@@ -10,7 +11,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // Data
     let data;
 
-    d3.json('../../data/facebook-alphas.json').then(json => {
+    d3.json('../../data/lee-params.json').then(json => {
         data = json;
 
         // Build the vis
@@ -22,8 +23,7 @@ document.addEventListener('DOMContentLoaded', function() {
      */
     function update() {
         // Update size of the vis
-        vis.width(window.innerWidth)
-            .height(window.innerHeight);
+        vis.width(window.innerWidth).height(window.innerHeight);
 
         // Update size of the vis container and redraw
         d3.select('.pv-vis-demo')
