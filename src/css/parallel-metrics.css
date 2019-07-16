@@ -25,3 +25,8 @@
     fill: green;
     cursor: default;
 }
+
+.pv-parallel-metrics .line-item {
+    stroke: hsl(0, 0%, 90%);
+    fill: none;
+}

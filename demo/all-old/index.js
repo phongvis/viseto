@@ -24,10 +24,17 @@ document.addEventListener('DOMContentLoaded', async function () {
             .on('click', onClicked);
     let tmData;
 
+    // Subgroups
+    const sgContainer = d3.select('.viseto-subgroups'),
+        sgVis = pv.vis.subgroups()
+            .on('brush', onBrushed)
+            .on('hover', onHovered);
+    let sgData;
+
     // Model tree
     const mtContainer = d3.select('.viseto-model-tree'),
         mtVis = pv.vis.modelTree();
-    let mtData;
+    let topicData, mtData;
 
     // Model topics
     const tContainer = d3.select('.viseto-topics'),
@@ -35,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async function () {
     let tData;
 
     // Linked views management
-    const views = [pmVis, tmVis, mtVis];
+    const views = [pmVis, tmVis, sgVis, mtVis];
 
     // Make the vis responsive to window resize
     window.onresize = _.throttle(update, 100);
@@ -59,8 +66,7 @@ document.addEventListener('DOMContentLoaded', async function () {
 
         tmData = pmData = {
             metrics: metrics,
-            models: data.metrics,
-            groups: data.ranks
+            models: data.metrics
         };
 
         // ID, tooltip
@@ -68,6 +74,19 @@ document.addEventListener('DOMContentLoaded', async function () {
             m.tooltip = `alpha: ${m.alpha}\nbeta: ${m.beta}\n# topics: ${m.num_topics}\nmean rank: ${m.mean_rank.toFixed(1)}\nbest rank: ${m.best_rank}`;
             metricLookup[m.modelId] = m;
         });
+
+        const extraMetrics = [
+            { name: 'mean_rank', label: 'mean rank' },
+            { name: 'best_rank', label: 'best rank' }
+        ];
+
+        sgData = {
+            metrics: extraMetrics.concat(metrics),
+            items: data.ranks
+        };
+
+        console.log(data.ranks);
+
     }
 
     function processTopics(data) {
@@ -79,6 +98,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         tData = _.clone(data[0], true);
 
         // Test by initially showing first only models with 5 topics
+        topicData = data;
         mtData = data.filter(m => m.topics.length === 5);
     }
 
@@ -89,6 +109,7 @@ document.addEventListener('DOMContentLoaded', async function () {
         redrawView(mcContainer, mcVis);
         redrawView(pmContainer, pmVis, pmData);
         redrawView(tmContainer, tmVis, tmData);
+        redrawView(sgContainer, sgVis, sgData);
         redrawView(mtContainer, mtVis, mtData);
         redrawView(tContainer, tVis, tData);
     }

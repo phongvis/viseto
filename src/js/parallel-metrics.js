@@ -8,13 +8,14 @@
  *  - modelId
  *  - metric values
  */
-pv.vis.parallelMetrics = function() {
+pv.vis.parallelMetrics = function () {
     /**
      * Visual configs.
      */
     const margin = { top: 45, right: 10, bottom: 5, left: 10 },
-        radius = 4
-        shapeSize = Math.PI * radius * radius;
+        radius = 3,
+        shapeSize = Math.PI * radius * radius,
+        yAxisWidth = 25;
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
@@ -26,7 +27,8 @@ pv.vis.parallelMetrics = function() {
         colorParams = ['none', 'mean rank', 'best rank', 'alpha', 'beta', 'num_topics'],
         colorMapping = 'beta',
         shapeParams = ['none', 'alpha', 'beta', 'num_topics'],
-        shapeMapping = 'num_topics',
+        shapeMapping = 'none',
+        overlap = false,
         modelParams = {
             'alpha': [0.01, 0.1, 1, 10],
             'beta': [0.01, 0.1, 1, 10],
@@ -54,15 +56,16 @@ pv.vis.parallelMetrics = function() {
      * DOM.
      */
     let visContainer, // Containing the entire visualization
+        axisContainer,
         metricContainer;
 
     /**
      * D3.
      */
-    const metricScale = d3.scaleBand().paddingInner(0.15),
+    const metricScale = d3.scaleBand().paddingInner(0.2),
         yScale = d3.scalePoint(),
-        colorScale = d3.scaleOrdinal().range(['#fdbe85','#fd8d3c','#e6550d','#a63603']),
-        shapeScale = d3.scaleOrdinal().range([d3.symbolTriangle, d3.symbolDiamond, d3.symbolStar, d3.symbolCircle]),
+        colorScale = d3.scaleOrdinal().range(['#d9d9d9', '#a6a6a6', '#595959', '#000000']),
+        shapeScale = d3.scaleOrdinal().range([d3.symbolCircle, d3.symbolTriangle, d3.symbolCross, d3.symbolStar]),
         greyScale = d3.interpolateGreys,
         rankScale = d3.scaleLinear(),
         listeners = d3.dispatch('click', 'hover', 'brush');
@@ -73,12 +76,17 @@ pv.vis.parallelMetrics = function() {
      * Main entry of the module.
      */
     function module(selection) {
-        selection.each(function(_data) {
+        selection.each(function (_data) {
             // Initialize
             if (!this.visInitialized) {
                 const container = d3.select(this).append('g').attr('class', 'pv-parallel-metrics');
                 visContainer = container.append('g').attr('class', 'main-vis');
-                metricContainer = visContainer.append('g').attr('class', 'metrics');
+                metricContainer = visContainer.append('g').attr('class', 'metrics')
+                axisContainer = metricContainer.append('g').attr('class', 'axis y-axis');
+
+                if (!overlap) {
+                    margin.top += 20;
+                }
 
                 metricData = _data.metrics;
                 modelData = _data.models;
@@ -104,7 +112,7 @@ pv.vis.parallelMetrics = function() {
         maxBarHeight = height - 20;
 
         visContainer.attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-        metricScale.range([0, width]);
+        metricScale.range([yAxisWidth, width]);
 
         /**
          * Computation.
@@ -148,10 +156,11 @@ pv.vis.parallelMetrics = function() {
 
         // Label
         container.append('text').attr('class', 'label')
-            .text(metricLabel);
+            .text(metricLabel)
+            .attr('dy', overlap ? 0 : -20);
 
         // Axis and brush
-        selection.each(function(d, i) {
+        selection.each(function (d, i) {
             d.scale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d)])));
             d.rankScale = d3.scaleLinear().domain(d3.extent(modelData.map(x => x[metricId(d) + '-rank'])));
             d.brush = d3.brush().on('start', onBrushstarted).on('brush', onBrushed).on('end', onBrushended);
@@ -170,7 +179,7 @@ pv.vis.parallelMetrics = function() {
         const s = d3.event.selection;
         if (!s) {
             // Empty selection, turn back to no brushing mode
-            metricContainer.selectAll('.model').each(function() {
+            metricContainer.selectAll('.model').each(function () {
                 d3.select(this).classed('non-brushed', false);
                 d3.select(this).classed('brushed', false);
             });
@@ -182,11 +191,11 @@ pv.vis.parallelMetrics = function() {
                 brushedIds = [];
 
             // Find the brushed elements using the brushing metric, then brush the same ids from other metrics
-            d3.select(this.parentNode).selectAll('.model').each(function(d) {
+            d3.select(this.parentNode).selectAll('.model').each(function (d) {
                 if (isBrushed(d)) brushedIds.push(d.id);
             });
 
-            metricContainer.selectAll('.model').each(function(d) {
+            metricContainer.selectAll('.model').each(function (d) {
                 d3.select(this).classed('non-brushed', !brushedIds.includes(d.id));
                 d3.select(this).classed('brushed', brushedIds.includes(d.id));
             });
@@ -206,7 +215,7 @@ pv.vis.parallelMetrics = function() {
     }
 
     function updateMetrics(selection) {
-        selection.each(function(d) {
+        selection.each(function (d, i) {
             const container = d3.select(this);
 
             container.transition()
@@ -219,11 +228,22 @@ pv.vis.parallelMetrics = function() {
                 .attr('y', -maxBarHeight - 23);
 
             // Axis
-            getScale(d).rangeRound([0, metricScale.bandwidth()]).nice();
+            if (ranked) {
+                getScale(d).rangeRound([metricScale.bandwidth(), 0]).nice();
+            } else {
+                getScale(d).rangeRound([0, metricScale.bandwidth()]).nice();
+            }
             container.select('.axis').call(d3.axisBottom(getScale(d)).ticks(5));
 
+            // Y-axis on the left most
+            if (!i) {
+                axisContainer.attr('transform', 'translate(' + (yAxisWidth - 5) + ',' + maxBarHeight + ')')
+                    .call(d3.axisLeft(yScale))
+                    .classed('hidden', ['jitter', 'beeswarm'].includes(yAxisMapping));
+            }
+
             // Brush
-            d.brush.extent([[-radius, -maxBarHeight - radius * 2], [metricScale.bandwidth() + radius, radius]]);
+            d.brush.extent([[-radius, -maxBarHeight - radius * 2 - 30], [metricScale.bandwidth() + radius, radius + 5]]);
             container.select('.brush').call(d.brush);
 
             // Model dots
@@ -245,7 +265,34 @@ pv.vis.parallelMetrics = function() {
 
             layoutModels(data, d);
 
+            // Lines connecting dots
+            const showLines = ['alpha', 'beta', 'num_topics'].includes(yAxisMapping) && !overlap && ['alpha', 'beta', 'num_topics'].includes(colorMapping) && colorMapping !== yAxisMapping;
+            if (showLines) {
+                const lineData = Object.entries(_.groupBy(data, d => d[yAxisMapping] + '-' + d[colorMapping])).map(x => x[1]);
+                layoutLines(lineData);
+
+                pv.enterUpdate(lineData, d3.select(this), enterLines, updateLines, null, 'line-item');
+            }
+            d3.select(this).selectAll('.line-item').classed('hidden', !showLines);
+
             pv.enterUpdate(data, d3.select(this), enterModels, updateModels, d => d.id, 'model');
+        });
+    }
+
+    function enterLines(selection) {
+        const container = selection;
+
+        container.append('line');
+    }
+
+    function updateLines(selection) {
+        selection.each(function (d) {
+            const container = d3.select(this);
+            container.select('line')
+                .attr('x1', d.x1)
+                .attr('x2', d.x2)
+                .attr('y1', d.y1)
+                .attr('y2', d.y2);
         });
     }
 
@@ -258,21 +305,21 @@ pv.vis.parallelMetrics = function() {
         container.append('title')
             .text(modelTooltip);
 
-        container.on('mouseover', function(d, i) {
+        container.on('mouseover', function (d, i) {
             if (brushing) return;
 
             metricContainer.selectAll('.model').classed('hovered', d2 => d2.id === d.id);
             metricContainer.selectAll('.model').filter(d2 => d2.id === d.id).raise();
             listeners.call('hover', module, d.id);
-        }).on('mouseout', function() {
+        }).on('mouseout', function () {
             metricContainer.selectAll('.model').classed('hovered', false);
             listeners.call('hover', module, null);
-        }).on('click', function(d) {
+        }).on('click', function (d) {
         });
     }
 
     function updateModels(selection) {
-        selection.each(function(d) {
+        selection.each(function (d) {
             const container = d3.select(this);
 
             container.transition()
@@ -323,7 +370,66 @@ pv.vis.parallelMetrics = function() {
                     d.y = yScale(d[yAxisMapping]);
                 }
             });
+
+            if (yAxisMapping !== 'jitter' && !overlap && ['alpha', 'beta', 'num_topics'].includes(colorMapping) && colorMapping !== yAxisMapping) {
+                _.each(_.groupBy(data, d => d[yAxisMapping]), (v, k) => {
+                    groupVertically(v);
+                });
+            }
         }
+    }
+
+    function layoutLines(data) {
+        data.forEach(g => {
+            const m1 = _.minBy(g, d => d.rank);
+            const m2 = _.maxBy(g, d => d.rank);
+
+            g.x1 = m2.x;
+            g.x2 = m1.x;
+            g.y1 = g.y2 = m1.y;
+        });
+    }
+
+    /**
+     * Within each band (same y), splits data into separate chunks so that there is no overlap between them.
+     * Chunks can move up down to avoid overlap.
+     */
+    function groupVertically(data) {
+        // Sort 4 groups and 4 elements in the group
+        data.sort((a, b) => d3.descending(a.rank, b.rank));
+
+        // Groups are sorted based on the first item
+        const groups = Object.entries(_.groupBy(data, d => d[colorMapping])).map(x => [+x[0], x[1]]);
+        groups.sort((a, b) => d3.ascending(a[0], b[0]));
+
+        // The first group stays at the same level
+        // Maintain the last item in each level for overlap check
+        // const lastItem = { 0: _.last(groups[0]) };
+        // groups.slice(1).forEach(g => {
+        //     let i = 0;
+        //     // Start from the bottom and move up.
+        //     for (i; i < _.size(lastItem); i++) {
+        //         // Overlap if rank of the first item in the group is greater than rank of the last item
+        //         if (lastItem[i].rank > g[0].rank) {
+        //             break;
+        //         }
+        //     }
+
+        //     // level is always equal to i, in both cases
+        //     lastItem[i] = _.last(g);
+
+        //     // translate
+        //     g.forEach(d => {
+        //         d.y -= (radius * 2 + 1) * i;
+        //     });
+        // });
+
+        // Option 2: always allocate a row for each subgroup
+        groups.forEach((g, i) => {
+            g[1].forEach(d => {
+                d.y -= (radius * 2 + 1) * i;
+            });
+        });
     }
 
     function addSettings(container) {
@@ -333,11 +439,6 @@ pv.vis.parallelMetrics = function() {
 
         container.html(`
             <div class='title'>${visTitle}</div>
-            <div class='setting shape'>
-                Shape
-                <select>
-                </select>
-            </div>
             <div class='setting color'>
                 Color
                 <select>
@@ -360,6 +461,12 @@ pv.vis.parallelMetrics = function() {
             `
         );
 
+        // <div class='setting shape'>
+        //         Shape
+        //         <select>
+        //         </select>
+        //     </div>
+
         // X-axis
         container.select('input[value=' + (ranked ? 'rank' : 'score') + ']').node().checked = true;
         container.selectAll('input[name=x-axis]').on('change', function () {
@@ -368,15 +475,35 @@ pv.vis.parallelMetrics = function() {
         });
 
         // Y-axis, Color, Shape
-        pv.addSelectOptions(container, '.y-axis select', yAxisParams, yAxisMapping, value => { yAxisMapping = value; update(); });
-        pv.addSelectOptions(container, '.color select', colorParams, colorMapping, value => { colorMapping = value; update(); });
-        pv.addSelectOptions(container, '.shape select', shapeParams, shapeMapping, value => { shapeMapping = value; update(); });
+        addSelectOptions(container, '.y-axis select', yAxisParams, yAxisMapping, value => { yAxisMapping = value; update(); });
+        addSelectOptions(container, '.color select', colorParams, colorMapping, value => { colorMapping = value; update(); });
+        // addSelectOptions(container, '.shape select', shapeParams, shapeMapping, value => { shapeMapping = value; update(); });
     }
+
+    function addSelectOptions(container, css, values, defaultValue, callback) {
+        const labels = values.map(v => {
+            if (modelParams[v]) {
+                return v + ' (' + modelParams[v].join(', ') + ')';
+            } else {
+                return v;
+            }
+        });
+
+        const select = container.select(css);
+        const options = select.selectAll('option').data(values);
+        options.enter().append('option')
+            .attr('value', String)
+            .text((d, i) => labels[i]);
+        select.node().value = defaultValue;
+        select.on('change', function () {
+            callback(this.value);
+        });
+    };
 
     /**
      * Sets/gets the width of the visualization.
      */
-    module.width = function(value) {
+    module.width = function (value) {
         if (!arguments.length) return visWidth;
         visWidth = value;
         return this;
@@ -385,7 +512,7 @@ pv.vis.parallelMetrics = function() {
     /**
      * Sets/gets the height of the visualization.
      */
-    module.height = function(value) {
+    module.height = function (value) {
         if (!arguments.length) return visHeight;
         visHeight = value;
         return this;
@@ -394,23 +521,23 @@ pv.vis.parallelMetrics = function() {
     /**
      * Sets the flag indicating data input has been changed.
      */
-    module.invalidate = function() {
+    module.invalidate = function () {
         dataChanged = true;
     };
 
     /**
      * Handles items that are brushed externally.
      */
-    module.handleBrush = function(ids) {
+    module.handleBrush = function (ids) {
         metricContainer.selectAll('.model')
-            .classed('ext-brushed', !ids ? false: d => ids.length && ids.includes(d.id))
-            .classed('non-ext-brushed', d => !ids ? false: ids.length && !ids.includes(d.id));
+            .classed('ext-brushed', !ids ? false : d => ids.length && ids.includes(d.id))
+            .classed('non-ext-brushed', d => !ids ? false : ids.length && !ids.includes(d.id));
     };
 
     /**
      * Handle an item that is hovered externally.
      */
-    module.handleHover = function(id) {
+    module.handleHover = function (id) {
         metricContainer.selectAll('.model')
             .classed('hovered', d => d.id === id)
             .filter(d => d.id === id).raise();
@@ -419,7 +546,7 @@ pv.vis.parallelMetrics = function() {
     /**
      * Binds custom events.
      */
-    module.on = function() {
+    module.on = function () {
         const value = listeners.on.apply(listeners, arguments);
         return value === listeners ? module : value;
     };

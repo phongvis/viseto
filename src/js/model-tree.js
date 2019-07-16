@@ -4,7 +4,7 @@
  * - modelId
  * - topics: array of { (word, prob, color) } showing topic details
  */
-pv.vis.modelTree = function() {
+pv.vis.modelTree = function () {
     /**
      * Visual configs.
      */
@@ -17,7 +17,7 @@ pv.vis.modelTree = function() {
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
         visTitle = 'Model Tree',
-        minProb = 0.02;
+        minProb = 0.01;
 
     /**
      * Accessors.
@@ -47,7 +47,7 @@ pv.vis.modelTree = function() {
      * D3.
      */
     const tree = d3.tree().nodeSize([topicWidth + topicGap, topicHeight + layerGap])
-            .separation((a, b) => a.parent === b.parent ? 1 : 1.25),
+        .separation((a, b) => a.parent === b.parent ? 1 : 1.25),
         widthScale = d3.scaleLinear().range([0, topicWidth]).domain([0, 1]),
         listeners = d3.dispatch('click');
 
@@ -55,7 +55,7 @@ pv.vis.modelTree = function() {
      * Main entry of the module.
      */
     function module(selection) {
-        selection.each(function(_data) {
+        selection.each(function (_data) {
             // Initialize
             if (!this.visInitialized) {
                 const container = d3.select(this).append('g').attr('class', 'pv-model-tree');
@@ -111,7 +111,6 @@ pv.vis.modelTree = function() {
             treeData = buildTree(modelData);
             treeData = tree(d3.hierarchy(treeData));
             topicData = treeData.descendants().slice(1); // Exclude the dummy root
-
             lineData = computeLineData(topicData);
         }
 
@@ -147,16 +146,16 @@ pv.vis.modelTree = function() {
         container.html(`
             <div class='title'>${visTitle}</div>
             <div class='setting prob'>
-                Min Probability
-                <input type='number' min=0.05 max=1 step=0.05 value=${minProb}></input>
-            </div>
+                Min Percentage
+                <input type='number' min=1 max=100 step=1 value=${minProb * 100}>%</input>
+            </div >
             `
         );
 
         // Min probability
         container.select('input[type=number]')
-            .on('input', function() {
-                minProb = this.value;
+            .on('input', function () {
+                minProb = +this.value / 100;
                 dataChanged = true;
                 update();
             });
@@ -164,6 +163,13 @@ pv.vis.modelTree = function() {
 
     function buildTree(models) {
         const root = {}; // a dummy root of the forest
+
+        // Reset
+        models.forEach(m => {
+            m.topics.forEach(t => {
+                t.children = [];
+            });
+        });
 
         models.forEach((m, i) => {
             // Each topic in the first model is a child of the root
@@ -233,10 +239,10 @@ pv.vis.modelTree = function() {
     function enterTopics(selection) {
         const container = selection
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .on('mouseover', function(d) {
+            .on('mouseover', function (d) {
                 // topicContainer.selectAll('.bar rect')
                 //     .style('fill', x => colorScale.domain().includes(termName(x)) ? colorScale(termName(x)) : normalFillColor);
-            }).on('mouseout', function() {
+            }).on('mouseout', function () {
             });
 
         container.append('rect').attr('class', 'container');
@@ -246,7 +252,7 @@ pv.vis.modelTree = function() {
      * Called when cells updated.
      */
     function updateTopics(selection) {
-        selection.each(function(d) {
+        selection.each(function (d) {
             const container = d3.select(this);
 
             // Transition location & opacity
@@ -270,19 +276,19 @@ pv.vis.modelTree = function() {
     function enterBars(selection) {
         const container = selection
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
-            .on('mouseover', function(d) {
+            .on('mouseover', function (d) {
                 d3.select(this).raise();
 
                 // Hightlight same words
-                topicContainer.selectAll('.bar').each(function(d2) {
+                topicContainer.selectAll('.bar').each(function (d2) {
                     d3.select(this).classed('hovered', termName(d2) === termName(d));
                     if (termName(d2) === termName(d)) {
                         d3.select(this).raise();
                     }
                 });
-            }).on('mouseout', function(d) {
+            }).on('mouseout', function (d) {
                 topicContainer.selectAll('.bar').classed('hovered', false).raise();
-                topicContainer.selectAll('.cell').each(function() {
+                topicContainer.selectAll('.cell').each(function () {
                     d3.select(this).select('.container').raise();
                 });
             });
@@ -296,7 +302,7 @@ pv.vis.modelTree = function() {
      * Called when bars updated.
      */
     function updateBars(selection) {
-        selection.each(function(d) {
+        selection.each(function (d) {
             const container = d3.select(this);
 
             // Transition location & opacity
@@ -323,7 +329,7 @@ pv.vis.modelTree = function() {
      * Called when lines updated.
      */
     function updateLines(selection) {
-        selection.each(function(d) {
+        selection.each(function (d) {
             d3.select(this).select('line')
                 .attr('x1', d.source.topic.x + d.source.term.x + d.source.term.width / 2)
                 .attr('y1', d.source.topic.y + topicHeight)
@@ -375,7 +381,7 @@ pv.vis.modelTree = function() {
         const pairs = [];
         source.data.forEach(s => {
             target.data.forEach(t => {
-                if (termName(s) === termName(t) && termProb(t) >= minProb) {
+                if (termName(s) === termName(t) && (termProb(s) >= minProb || termProb(t) >= minProb)) {
                     pairs.push({
                         source: { topic: source, term: s },
                         target: { topic: target, term: t }
@@ -390,7 +396,7 @@ pv.vis.modelTree = function() {
     /**
      * Sets/gets the width of the visualization.
      */
-    module.width = function(value) {
+    module.width = function (value) {
         if (!arguments.length) return visWidth;
         visWidth = value;
         return this;
@@ -399,7 +405,7 @@ pv.vis.modelTree = function() {
     /**
      * Sets/gets the height of the visualization.
      */
-    module.height = function(value) {
+    module.height = function (value) {
         if (!arguments.length) return visHeight;
         visHeight = value;
         return this;
@@ -408,14 +414,14 @@ pv.vis.modelTree = function() {
     /**
      * Sets the flag indicating data input has been changed.
      */
-    module.invalidate = function() {
+    module.invalidate = function () {
         dataChanged = true;
     };
 
     /**
      * Binds custom events.
      */
-    module.on = function() {
+    module.on = function () {
         const value = listeners.on.apply(listeners, arguments);
         return value === listeners ? module : value;
     };

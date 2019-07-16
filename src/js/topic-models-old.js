@@ -14,12 +14,14 @@ pv.vis.topicModels = function () {
      */
     const margin = { top: 25, right: 5, bottom: 5, left: 5 },
         radius = 16,
+        itemGap = 3,
         axisOffsetX = 25,
         axisOffsetY = 15;
 
     let visWidth = 960, visHeight = 600, // Size of the visualization, including margins
         width, height, // Size of the main content, excluding margins
         visTitle = 'Scatter Metrics',
+        layout = 'two', // one/two
         modelTooltip = d => d.tooltip,
         modelParams = {
             'alpha': [0.01, 0.1, 1, 10],
@@ -28,18 +30,17 @@ pv.vis.topicModels = function () {
         }, paramList = ['alpha', 'beta', 'num_topics'],
         numLevels = modelParams['alpha'].length,
         numParams = paramList.length,
+        colorParams = ['none', 'mean rank', 'best rank'],
+        color = 'none',
         axisMappings = ['dim 1', 'dim 2', 'mean rank', 'best rank'],
         xAxisMappingIdx = 2,
         yAxisMappingIdx = 3,
-        showGlyphs = true,
-        fixBy = 2, // 1,2,3
         brushing = false;
 
     /**
      * Accessors.
      */
     let modelId = d => d.modelId,
-        groupId = d => d.condition.map(c => c.join('-')).join(','),
         meanRank = d => d.mean_rank,
         bestRank = d => d.best_rank,
         mappingAccessors = [
@@ -75,6 +76,8 @@ pv.vis.topicModels = function () {
         yScale = d3.scaleLinear(),
         xAxis = d3.axisBottom(xScale),
         yAxis = d3.axisLeft(yScale),
+        colorScale = d3.interpolateGreys,
+        rankScale = d3.scaleLinear().range([0, 0.75]),
         brush = d3.brush().on('brush', onBrushed).on('end', onBrushended),
         listeners = d3.dispatch('click', 'hover', 'brush');
 
@@ -93,6 +96,7 @@ pv.vis.topicModels = function () {
 
                 modelData = _data.models;
                 groupData = _data.groups;
+                console.log(groupData[0]);
 
                 addAxes();
                 addSettings(container);
@@ -124,18 +128,14 @@ pv.vis.topicModels = function () {
          * Computation.
          */
         // Updates that depend only on data change
-        let data;
         if (dataChanged) {
-            data = fixBy === 3 ? modelData : groupData.filter(g => g.condition.length == fixBy);
-            xScale.domain(d3.extent(data, mappingAccessors[xAxisMappingIdx]).reverse()).nice();
-            yScale.domain(d3.extent(data, mappingAccessors[yAxisMappingIdx]).reverse()).nice();
-
-            modelContainer.selectAll('.model').remove();
-            groupContainer.selectAll('.group').remove();
+            xScale.domain(d3.extent(modelData, mappingAccessors[xAxisMappingIdx]).reverse()).nice();
+            yScale.domain(d3.extent(modelData, mappingAccessors[yAxisMappingIdx]).reverse()).nice();
+            rankScale.domain([1, modelData.length]);
         }
 
-        xAxisContainer.call(xAxis);
-        yAxisContainer.call(yAxis);
+        xAxisContainer.classed('hidden', layout === 'one').call(xAxis);
+        yAxisContainer.classed('hidden', layout === 'one').call(yAxis);
         xAxisLabel.attr('transform', 'translate(' + width + ',-3)');
         yAxisLabel.attr('transform', 'translate(0,-3) rotate(-90)');
 
@@ -145,14 +145,15 @@ pv.vis.topicModels = function () {
         // Updates that depend on both data and display change
         layoutModels();
 
-        modelContainer.classed('hidden', fixBy !== 3);
-        groupContainer.classed('hidden', fixBy === 3);
+        pv.enterUpdate(modelData, modelContainer, enterModels, updateModels, modelId, 'model');
+        pv.enterUpdate(groupData, groupContainer, enterGroups, updateGroups, groupId, 'group');
 
-        if (fixBy === 3) {
-            pv.enterUpdate(data, modelContainer, enterModels, updateModels, modelId, 'model');
-        } else {
-            pv.enterUpdate(data, groupContainer, enterGroups, updateGroups, groupId, 'group');
-        }
+        // modelContainer.selectAll('.model').sort(orderSort);
+    }
+
+    function orderSort(a, b) {
+        if (color === 'mean rank') return d3.descending(meanRank(a), meanRank(b)) || d3.ascending(modelId(a), modelId(b));
+        if (color === 'best rank') return d3.descending(bestRank(a), bestRank(b)) || d3.ascending(modelId(a), modelId(b));
     }
 
     function enterModels(selection) {
@@ -160,27 +161,23 @@ pv.vis.topicModels = function () {
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 1);
 
-        if (showGlyphs) {
-            // Pie, one for each param
-            const levelRadius = radius / numLevels,
-                paramAngle = Math.PI * 2 / numParams;
-            container.each(function (d) {
-                _.times(numParams, i => {
-                    const p = paramList[i],
-                        paramValueIdx = modelParams[p].indexOf(d[p]);
+        // Pie, one for each param
+        const levelRadius = radius / numLevels,
+            paramAngle = Math.PI * 2 / numParams;
+        container.each(function (d) {
+            _.times(numParams, i => {
+                const p = paramList[i],
+                    paramValueIdx = modelParams[p].indexOf(d[p]);
 
-                    const arc = d3.arc()
-                        .innerRadius(0)
-                        .outerRadius((paramValueIdx + 1) * levelRadius)
-                        .startAngle(paramAngle * i)
-                        .endAngle(paramAngle * (i + 1));
-                    d3.select(this).append('path')
-                        .attr('d', arc);
-                });
+                const arc = d3.arc()
+                    .innerRadius(0)
+                    .outerRadius((paramValueIdx + 1) * levelRadius)
+                    .startAngle(paramAngle * i)
+                    .endAngle(paramAngle * (i + 1));
+                d3.select(this).append('path')
+                    .attr('d', arc);
             });
-        } else {
-            container.append('circle').attr('r', 4);
-        }
+        });
 
         container.append('title')
             .text(modelTooltip);
@@ -206,6 +203,10 @@ pv.vis.topicModels = function () {
             container.transition()
                 .attr('transform', 'translate(' + d.x + ',' + d.y + ')')
                 .attr('opacity', 1);
+
+            const c = findColor(d);
+            container.style('fill', c)
+                .style('stroke', d3.color(c).darker());
         });
     }
 
@@ -214,64 +215,42 @@ pv.vis.topicModels = function () {
             .attr('transform', d => 'translate(' + d.x + ',' + d.y + ')')
             .attr('opacity', 1);
 
-        if (showGlyphs) {
-            // Pie, one for each param
-            const levelRadius = radius / numLevels,
-                paramAngle = Math.PI * 2 / numParams;
-            container.each(function (d) {
-                _.times(numParams, i => {
+        // Pie, one for each param
+        const levelRadius = radius / numLevels,
+            paramAngle = Math.PI * 2 / numParams;
+        container.each(function (d) {
+            _.times(numParams, i => {
+                let p = paramList[i],
+                    paramValueIdx = modelParams[p].indexOf(d[p]),
+                    emptyFill = paramValueIdx === -1;
 
-                    let p = paramList[i],
-                        paramValueIdx = -1;
+                // If the param is missing, show as the biggest but with empty fill.
+                if (paramValueIdx === -1) paramValueIdx = modelParams[p].length - 1;
 
-                    d.condition.forEach(c => {
-                        if (c[0] === p) {
-                            paramValueIdx = modelParams[p].indexOf(c[1]);
-                        }
-                    });
-
-                    const emptyFill = paramValueIdx === -1;
-
-                    // If the param is missing, show as the biggest but with empty fill.
-                    if (paramValueIdx === -1) paramValueIdx = modelParams[p].length - 1;
-
-                    const arc = d3.arc()
-                        .innerRadius(0)
-                        .outerRadius((paramValueIdx + 1) * levelRadius)
-                        .startAngle(paramAngle * i)
-                        .endAngle(paramAngle * (i + 1));
-                    d3.select(this).append('path')
-                        .classed('no-fill', emptyFill)
-                        .attr('d', arc);
-                });
+                const arc = d3.arc()
+                    .innerRadius(0)
+                    .outerRadius((paramValueIdx + 1) * levelRadius)
+                    .startAngle(paramAngle * i)
+                    .endAngle(paramAngle * (i + 1));
+                d3.select(this).append('path')
+                    .classed('no-fill', emptyFill)
+                    .attr('d', arc);
             });
-        } else {
-            container.append('circle').attr('r', 4);
-        }
-
-        container.append('title')
-            .text(d => {
-                let s = '';
-                if (d.condition.length === 1) {
-                    s += '16 models with ' + d.condition[0][0] + '=' + d.condition[0][1];
-                } else {
-                    s += '4 models with ' + d.condition[0][0] + '=' + d.condition[0][1] + ', ' + d.condition[1][0] + '=' + d.condition[1][1];
-                }
-
-                s += '\n  Average mean rank: ' + meanRank(d).toFixed(1) +
-                    '\n  Average best rank: ' + bestRank(d).toFixed(1);
-
-                return s;
-            });
-
-        container.on('mouseover', function (d) {
-            if (brushing) return;
-
-            listeners.call('hover', module, modelId(d));
-        }).on('mouseout', function () {
-            listeners.call('hover', module, null);
-        }).on('click', function (d) {
         });
+
+        // container.append('title')
+        //     .text(itemTooltip);
+
+        // container.on('mouseover', function(d) {
+        //     if (brushing) return;
+
+        //     itemContainer.selectAll('.item').classed('hovered', d2 => d2.id === d.id);
+        //     listeners.call('hover', module, d.id);
+        // }).on('mouseout', function() {
+        //     itemContainer.selectAll('.item').classed('hovered', false);
+        //     listeners.call('hover', module, null);
+        // }).on('click', function(d) {
+        // });
     }
 
     function updateGroups(selection) {
@@ -284,16 +263,30 @@ pv.vis.topicModels = function () {
         });
     }
 
-    function layoutModels() {
-        modelData.forEach(d => {
-            d.x = xScale(mappingAccessors[xAxisMappingIdx](d));
-            d.y = yScale(mappingAccessors[yAxisMappingIdx](d));
-        });
+    function findColor(d) {
+        return c = {
+            'none': 'hsl(0, 0%, 90%)',
+            'mean rank': colorScale(rankScale(meanRank(d))),
+            'best rank': colorScale(rankScale(bestRank(d)))
+        }[color];
+    }
 
-        groupData.forEach(g => {
-            g.x = xScale(mappingAccessors[xAxisMappingIdx](g));
-            g.y = yScale(mappingAccessors[yAxisMappingIdx](g));
-        })
+    function layoutModels() {
+        if (layout === 'one') {
+            const numItemsPerRow = Math.floor((width + itemGap) / (radius * 2 + itemGap));
+
+            modelData.forEach((d, i) => {
+                d.row = Math.floor(i / numItemsPerRow);
+                d.col = i % numItemsPerRow;
+                d.x = d.col * (radius * 2 + itemGap) + radius;
+                d.y = d.row * (radius * 2 + itemGap) + radius;
+            });
+        } else if (layout === 'two') {
+            modelData.forEach(d => {
+                d.x = xScale(mappingAccessors[xAxisMappingIdx](d));
+                d.y = yScale(mappingAccessors[yAxisMappingIdx](d));
+            });
+        }
     }
 
     function onBrushed() {
@@ -358,34 +351,35 @@ pv.vis.topicModels = function () {
 
         container.html(`
             <div class='title'>${visTitle}</div>
-            <div class='setting grouping'>
-                Group
-                <select>
-                    <option value=3>None</option>
-                    <option value=1>Fix 1 param</option>
-                    <option value=2>Fix 2 params</option>
-                </select>
-            </div>
-            <label class='setting'>Glyphs <input type='checkbox' class='glyph'></label>
             `
         );
 
-        container.selectAll('.grouping select option').each(function (o) {
-            this.selected = +this.value === fixBy;
-        });
-        container.select('.grouping select')
-            .on('change', function () {
-                fixBy = +this.value;
-                dataChanged = true;
-                update();
-            });
+        // container.html(`
+        //     <div class='title'>${visTitle}</div>
+        //     <div class='setting layout'>
+        //         Layout
+        //         <label>
+        //             <input type='radio' value='one' name='layout'> 1d
+        //         </label>
+        //         <label>
+        //             <input type='radio' value='two' name='layout'> 2d
+        //         </label>
+        //     </div>
+        //     <div class='setting color'>
+        //         Color
+        //         <select>
+        //         </select>
+        //     </div>
+        //     `
+        // );
 
-        container.select('.setting .glyph').node().checked = showGlyphs;
-        container.select('.setting .glyph').on('change', function () {
-            showGlyphs = this.checked;
-            dataChanged = true;
-            update();
-        });
+        // container.select('input[value=' + layout + ']').node().checked = true;
+        // container.selectAll('input[name=layout]').on('change', function () {
+        //     layout = this.value;
+        //     update();
+        // });
+
+        // pv.addSelectOptions(container, '.color select', colorParams, color, value => { color = value; update(); });
     }
 
     /**
@@ -429,6 +423,8 @@ pv.vis.topicModels = function () {
         modelContainer.selectAll('.model')
             .classed('hovered', d => modelId(d) === id)
             .filter(d => modelId(d) === id).raise();
+
+        if (!id) modelContainer.selectAll('.model').sort(orderSort);
     };
 
     /**

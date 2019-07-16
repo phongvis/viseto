@@ -10,6 +10,7 @@
     <link rel='stylesheet' href='../../src/css/model-collection.css'>
     <link rel='stylesheet' href='../../src/css/parallel-metrics.css'>
     <link rel='stylesheet' href='../../src/css/topic-models.css'>
+    <link rel='stylesheet' href='../../src/css/subgroups.css'>
     <link rel='stylesheet' href='../../src/css/model-tree.css'>
     <link rel='stylesheet' href='../../src/css/topics.css'>
 
@@ -19,7 +20,7 @@
             height: 100%;
             display: grid;
             grid-template-rows: 65px 240px 1fr;
-            grid-template-columns: 2fr 3fr 2fr;
+            grid-template-columns: 1fr 1fr 2fr 1fr;
             gap: 3px;
             padding: 3px;
         }
@@ -39,14 +40,19 @@
             grid-column: 1;
         }
 
-        .viseto-model-tree {
+        .viseto-subgroups {
             grid-row: 3;
             grid-column: 2;
         }
 
-        .viseto-topics {
+        .viseto-model-tree {
             grid-row: 3;
             grid-column: 3;
+        }
+
+        .viseto-topics {
+            grid-row: 3;
+            grid-column: 4;
         }
     </style>
 </head>
@@ -55,6 +61,7 @@
     <svg class='vis viseto-model-collection'></svg>
     <svg class='vis viseto-parallel-metrics'></svg>
     <svg class='vis viseto-topic-models'></svg>
+    <svg class='vis viseto-subgroups'></svg>
     <svg class='vis viseto-model-tree'></svg>
     <svg class='vis viseto-topics'></svg>
 
@@ -68,6 +75,7 @@
     <script src='../../src/js/model-collection.js'></script>
     <script src='../../src/js/parallel-metrics.js'></script>
     <script src='../../src/js/topic-models.js'></script>
+    <script src='../../src/js/subgroups.js'></script>
     <script src='../../src/js/model-tree.js'></script>
     <script src='../../src/js/topics.js'></script>
     <script src='index.js'></script>
